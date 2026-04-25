@@ -5,10 +5,12 @@ extensions = ["mp3", "wav", "flac", "ogg", "aac", "aiff", "mp4", "m4a"]
 
 [output]
 directory = "~/music-analysis-out"
-formats = ["console", "json", "markdown"]
+formats = ["console", "json", "markdown", "narrative"]
 plots = true
 
 [analysis]
 genre = true
-style = ["jazz", "classic", "jpop", "rock"]
+# "auto" は AST top-K のジャンル推論結果に応じて動的に解析対象を選ぶ
+style = ["auto"]
+style_top_k = 5
 chord_engine = "madmom"

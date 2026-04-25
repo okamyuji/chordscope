@@ -14,6 +14,7 @@ from chordscope.pipeline import AnalysisOptions, analyze_file, options_from_conf
 from chordscope.reporting.console import render_track
 from chordscope.reporting.json_report import write_json
 from chordscope.reporting.markdown import write_markdown
+from chordscope.reporting.narrative import write_narrative
 
 app = typer.Typer(
     name="chordscope",
@@ -63,8 +64,8 @@ def analyze(
     formats: list[str] | None = typer.Option(
         None,
         callback=_split_csv,
-        help="出力フォーマット: console, json, markdown。"
-        " カンマ区切り (例: --formats json,markdown) または複数指定 (--formats json --formats markdown) のどちらでも可。",
+        help="出力フォーマット: console, json, markdown, narrative (論理フロー型の音楽分析文)。"
+        " カンマ区切り (例: --formats json,narrative) または複数指定 (--formats json --formats narrative) のどちらでも可。",
     ),
 ) -> None:
     """指定されたパスを再帰的に分析する。"""
@@ -118,6 +119,8 @@ def analyze(
             write_json(track, out_dir / f"{stem}.json")
         if "markdown" in formats_set:
             write_markdown(track, out_dir / f"{stem}.md")
+        if "narrative" in formats_set:
+            write_narrative(track, out_dir / f"{stem}_analysis.md")
         _console.print(f"[green]Saved outputs to {out_dir}[/green]")
 
 
@@ -140,12 +143,15 @@ extensions = ["mp3", "wav", "flac", "ogg", "aac", "aiff", "mp4", "m4a"]
 
 [output]
 directory = "~/music-analysis-out"
-formats = ["console", "json", "markdown"]
+# narrative は論理フロー型の音楽分析文 (LLM 不要、テンプレート出力)
+formats = ["console", "json", "markdown", "narrative"]
 plots = true
 
 [analysis]
 genre = true
-style = ["jazz", "classic", "jpop", "rock"]
+# "auto" は AST AudioSet top-K を style notes 対象に動的展開する
+style = ["auto"]
+style_top_k = 5
 chord_engine = "madmom"  # madmom | librosa-template
 """
 

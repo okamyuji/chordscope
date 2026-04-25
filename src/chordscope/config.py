@@ -29,7 +29,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 DEFAULT_EXTENSIONS = ("mp3", "wav", "flac", "ogg", "aac", "aiff", "mp4", "m4a")
 ChordEngine = Literal["madmom", "librosa-template"]
-ReportFormat = Literal["console", "json", "markdown"]
+ReportFormat = Literal["console", "json", "markdown", "narrative"]
 # style は固定 Literal を撤廃。"auto" (AST top-K 自動採用) または任意ジャンル名のリスト。
 StyleChoice = str
 DEFAULT_STYLE_TOP_K = 5
