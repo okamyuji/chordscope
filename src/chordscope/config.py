@@ -30,7 +30,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 DEFAULT_EXTENSIONS = ("mp3", "wav", "flac", "ogg", "aac", "aiff", "mp4", "m4a")
 ChordEngine = Literal["madmom", "librosa-template"]
 ReportFormat = Literal["console", "json", "markdown"]
-StyleChoice = Literal["jazz", "classic", "jpop", "rock"]
+# style は固定 Literal を撤廃。"auto" (AST top-K 自動採用) または任意ジャンル名のリスト。
+StyleChoice = str
+DEFAULT_STYLE_TOP_K = 5
 
 
 class DiscoveryConfig(BaseModel):
@@ -69,9 +71,9 @@ class AnalysisConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     genre: bool = True
-    style: list[StyleChoice] = Field(
-        default_factory=lambda: ["jazz", "classic", "jpop", "rock"]  # type: ignore[arg-type]
-    )
+    # "auto" は AST top-K を style notes に動的展開する。任意ジャンル名のリストでも可。
+    style: list[str] = Field(default_factory=lambda: ["auto"])
+    style_top_k: int = Field(default=DEFAULT_STYLE_TOP_K, ge=1, le=50)
     chord_engine: ChordEngine = "madmom"
 
 

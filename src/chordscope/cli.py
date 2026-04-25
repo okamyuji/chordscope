@@ -25,6 +25,16 @@ app = typer.Typer(
 _console = Console()
 
 
+def _split_csv(values: list[str] | None) -> list[str] | None:
+    """typer の --opt a,b と --opt a --opt b の両方を許容するコールバック。"""
+    if not values:
+        return values
+    out: list[str] = []
+    for v in values:
+        out.extend(s.strip() for s in v.split(",") if s.strip())
+    return out
+
+
 @app.command("analyze")
 def analyze(
     paths: list[Path] = typer.Argument(
@@ -51,7 +61,10 @@ def analyze(
     no_genre: bool = typer.Option(False, help="ジャンル分類をスキップ"),
     no_plots: bool = typer.Option(False, help="グラフ画像生成をスキップ"),
     formats: list[str] | None = typer.Option(
-        None, help="出力フォーマット: console, json, markdown (複数指定可)"
+        None,
+        callback=_split_csv,
+        help="出力フォーマット: console, json, markdown。"
+        " カンマ区切り (例: --formats json,markdown) または複数指定 (--formats json --formats markdown) のどちらでも可。",
     ),
 ) -> None:
     """指定されたパスを再帰的に分析する。"""

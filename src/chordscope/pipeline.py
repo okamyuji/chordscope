@@ -24,7 +24,9 @@ class AnalysisOptions:
 
     chord_engine: str = "madmom"
     enable_genre: bool = True
-    enabled_styles: tuple[str, ...] = ("jazz", "classic", "jpop", "rock")
+    # "auto" は AST top-K ジャンルを動的に展開する。固定リストとの混在も可。
+    enabled_styles: tuple[str, ...] = ("auto",)
+    style_top_k: int = 5
     plots: bool = True
     plot_dir: Path | None = None
     genre_classifier: GenreClassifier | None = None  # 再利用したい場合に渡す
@@ -37,6 +39,7 @@ def options_from_config(
         chord_engine=config.chord_engine,
         enable_genre=config.genre,
         enabled_styles=tuple(config.style),
+        style_top_k=config.style_top_k,
         plots=plots,
         plot_dir=plot_dir,
     )
@@ -63,6 +66,8 @@ def analyze_file(path: Path, opts: AnalysisOptions) -> TrackAnalysis:
         chords=chords,
         harmony=harmony,
         enabled=list(opts.enabled_styles),
+        genre=genre,
+        top_k=opts.style_top_k,
     )
     plot_paths: dict[str, Path] = {}
     if opts.plots and opts.plot_dir is not None:

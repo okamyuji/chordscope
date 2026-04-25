@@ -102,7 +102,55 @@ _DIRECT_GENRE_LABELS = frozenset(
 )
 
 
+# 上位概念ラベル: AudioSet の親階層で常時高スコアになるため除外する。
+# (これらが top を独占すると個別ジャンルが見えなくなる)
+_UMBRELLA_LABELS = frozenset(
+    {
+        # Music ontology の親階層 (どの音楽でも高スコア)
+        "Music",
+        "Musical instrument",
+        "Singing",
+        "Speech",
+        "Sound effect",
+        "Background music",
+        # 楽器カテゴリ (ジャンルではない)
+        "Plucked string instrument",
+        "Bowed string instrument",
+        "Brass instrument",
+        "Woodwind instrument",
+        "Keyboard (musical)",
+        "Percussion",
+        "Drum kit",
+        "Drum",
+        "Bass (instrument role)",
+        "Mallet percussion",
+        "Vocal music",
+        # ムード / 感情ラベル (ジャンルではない)
+        "Happy music",
+        "Funny music",
+        "Sad music",
+        "Tender music",
+        "Exciting music",
+        "Angry music",
+        "Scary music",
+        # 機能ラベル (ジャンルではない)
+        "Theme music",
+        "Jingle (music)",
+        "Soundtrack music",
+        "Lullaby",
+        "Video game music",
+        "Christmas music",
+        "Wedding music",
+        "Birthday music",
+        # 一般語
+        "Independent music",
+    }
+)
+
+
 def _is_genre_label(label: str) -> bool:
+    if label in _UMBRELLA_LABELS:
+        return False
     if label in _DIRECT_GENRE_LABELS:
         return True
     lower = label.lower()
@@ -151,8 +199,17 @@ class GenreClassifier:
         buffer: AudioBuffer,
         *,
         aggregation: Literal["mean", "max"] = "mean",
-        top_k: int = 15,
+        top_k: int = 5,
+        family_diversity: bool = True,
     ) -> GenreResult:
+        """AST 推論結果から TOP-K のジャンル分布を返す。
+
+        - `top_k` (既定 5): 出力件数。
+        - `family_diversity`: True なら親 family 重複を抑え多様性を確保する。
+          (例: top にロック系ばかり並ばないように、 1 family あたり 2 件まで)
+        """
+        from chordscope.genre_catalog import family_of
+
         if buffer.sample_rate != TARGET_SR:
             samples = librosa.resample(
                 buffer.samples, orig_sr=buffer.sample_rate, target_sr=TARGET_SR
@@ -182,7 +239,21 @@ class GenreClassifier:
         if not genre_scores:
             msg = "No genre labels available in model"
             raise RuntimeError(msg)
-        distribution = genre_scores[:top_k]
+        if family_diversity:
+            family_count: dict[str, int] = {}
+            picked: list[GenreScore] = []
+            family_cap = max(2, top_k // 3)  # top_k=5 なら 1 family 最大 2 件
+            for g in genre_scores:
+                fam = family_of(g.label) or "_other"
+                if family_count.get(fam, 0) >= family_cap:
+                    continue
+                picked.append(g)
+                family_count[fam] = family_count.get(fam, 0) + 1
+                if len(picked) >= top_k:
+                    break
+            distribution = picked
+        else:
+            distribution = genre_scores[:top_k]
         return GenreResult(
             top=distribution[0],
             distribution=distribution,

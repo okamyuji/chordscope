@@ -11,8 +11,26 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+__all__ = [
+    "BeatResult",
+    "ChordResult",
+    "ChordSegment",
+    "GenreLabel",
+    "GenreResult",
+    "GenreScore",
+    "HarmonicAnalysis",
+    "KeyResult",
+    "MeterResult",
+    "StyleName",
+    "StyleNotes",
+    "TempoResult",
+    "TrackAnalysis",
+]
+
 GenreLabel = str
-StyleName = Literal["jazz", "classic", "jpop", "rock"]
+# StyleName は固定 Literal を撤廃し、AST AudioSet ラベルや任意ジャンル名を許容する。
+# heuristic レジストリに対応キーがあれば固有 finding が出る。未登録は AST スコアのみ報告。
+StyleName = str
 
 
 class _Frozen(BaseModel):
