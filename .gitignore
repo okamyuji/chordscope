@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual env
+.venv/
+
+# Test/coverage artifacts
+.pytest_cache/
+.coverage
+.coverage_html/
+htmlcov/
+
+# mypy / ruff cache
+.mypy_cache/
+.ruff_cache/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# music-analyzer outputs
+music-analysis-out/
+*.json.tmp

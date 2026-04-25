@@ -1,0 +1,5 @@
+# user-audio は実音源を投入する場所のため、音源自体はコミット対象外
+*
+!.gitignore
+!.gitkeep
+!README.md

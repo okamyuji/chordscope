@@ -1,0 +1,14 @@
+# chordscope 設定ファイルの例
+[discovery]
+roots = ["~/Music", "~/Downloads"]
+extensions = ["mp3", "wav", "flac", "ogg", "aac", "aiff", "mp4", "m4a"]
+
+[output]
+directory = "~/music-analysis-out"
+formats = ["console", "json", "markdown"]
+plots = true
+
+[analysis]
+genre = true
+style = ["jazz", "classic", "jpop", "rock"]
+chord_engine = "madmom"

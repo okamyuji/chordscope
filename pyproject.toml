@@ -1,0 +1,141 @@
+[project]
+name = "chordscope"
+version = "0.1.0"
+description = "汎用音楽分析器 (BPM/拍子/コード/音楽理論/ジャンル)"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+authors = [
+    { name = "Yuji OKAMOTO", email = "okamyuji@gmail.com" },
+]
+license = { text = "MIT" }
+keywords = ["music", "analysis", "audio", "chord", "bpm", "music-theory"]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+]
+dependencies = [
+    "librosa>=0.10.2",
+    "music21>=9.1",
+    "numpy>=1.26,<2.3",
+    "scipy>=1.13",
+    "soundfile>=0.12",
+    "audioread>=3.0",
+    "matplotlib>=3.8",
+    "typer>=0.12",
+    "rich>=13.7",
+    "pydantic>=2.7",
+    "torch>=2.3",
+    "transformers>=4.40",
+    "huggingface-hub>=0.23",
+    "tqdm>=4.66",
+    "madmom>=0.16.1",
+    "cython>=3.0",
+]
+
+[project.scripts]
+chordscope = "chordscope.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.9.9,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+extra-build-dependencies = { madmom = ["Cython", "numpy"] }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RET", "RUF",
+    "PL", "ANN", "PTH",
+]
+# 日本語コメント中の全角括弧/感嘆符などは多用するので RUF001-003 を許容
+ignore = [
+    "E501", "PLR0913", "ANN401", "PLR2004",
+    "RUF001", "RUF002", "RUF003",
+    "PLC0415",  # numpy 等を関数内 import するケースが多数 (madmom 互換のため)
+    "B008",     # typer.Option/Argument の引数デフォルトは標準 idiom
+    "BLE001",   # 1ファイル失敗時に他へ進むため広い except を許容 (CLI 側でログ済)
+    "PLR0912", "PLR0915",  # 大きい render/CLI 関数を許容
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN", "PLR2004", "S101"]
+"src/chordscope/reporting/**" = ["PLR0912", "PLR0915"]
+"src/chordscope/cli.py" = ["PLR0912", "PLR0915"]
+"src/chordscope/analyzers/style.py" = ["PLR0912", "PLR0915"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+
+[[tool.mypy.overrides]]
+module = [
+    "librosa.*",
+    "music21.*",
+    "scipy.*",
+    "soundfile.*",
+    "matplotlib.*",
+    "transformers.*",
+    "torch.*",
+    "audioread.*",
+    "huggingface_hub.*",
+    "tqdm.*",
+    "madmom.*",
+    "vamp.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# numpy ndarray の型パラメータを毎所要求すると煩雑なので許容
+module = ["chordscope.*"]
+disable_error_code = ["type-arg", "no-any-return", "no-untyped-call", "name-defined"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "-v",
+    "--strict-markers",
+    "--cov=chordscope",
+    "--cov-report=term-missing",
+    "--cov-report=html:.coverage_html",
+]
+markers = [
+    "slow: 実音源を用いる時間のかかるテスト (deselect with -m 'not slow')",
+    "integration: 統合テスト (実音声ファイル必要)",
+]
+
+[tool.coverage.run]
+source = ["src/chordscope"]
+omit = ["*/tests/*", "*/__main__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
