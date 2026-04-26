@@ -11,10 +11,15 @@ from chordscope.models import (
     GenreResult,
     GenreScore,
     HarmonicAnalysis,
+    KeyChange,
     KeyResult,
+    KeySegment,
     MeterResult,
+    ModulationResult,
     StyleNotes,
+    TempoCurveResult,
     TempoResult,
+    TempoSegment,
     TrackAnalysis,
 )
 from chordscope.reporting.narrative import render_narrative, write_narrative
@@ -58,6 +63,65 @@ def _track() -> TrackAnalysis:
             cadences=["Plagal Cadence (iv→i)", "Authentic Cadence (V→i)"],
             modulations=["Possible key change near chord index 8 (A → C)"],
             chord_categories={"T": 3, "SD": 1, "D": 1},
+        ),
+        modulation=ModulationResult(
+            window_sec=16.0,
+            hop_sec=4.0,
+            segments=[
+                KeySegment(
+                    start_sec=0.0,
+                    end_sec=84.0,
+                    tonic="A",
+                    mode="minor",
+                    confidence=0.7,
+                    correlation=0.55,
+                ),
+                KeySegment(
+                    start_sec=84.0,
+                    end_sec=240.0,
+                    tonic="C",
+                    mode="major",
+                    confidence=0.65,
+                    correlation=0.5,
+                ),
+            ],
+            changes=[
+                KeyChange(
+                    at_sec=84.0,
+                    from_tonic="A",
+                    from_mode="minor",
+                    to_tonic="C",
+                    to_mode="major",
+                    interval_semitones=3,
+                    relation="relative",
+                ),
+            ],
+            method="ks-test",
+        ),
+        tempo_curve=TempoCurveResult(
+            window_beats=8,
+            global_bpm=128.5,
+            bpm_min=122.0,
+            bpm_max=138.0,
+            bpm_std=4.5,
+            segments=[
+                TempoSegment(
+                    start_sec=0.0,
+                    end_sec=72.0,
+                    local_bpm=122.0,
+                    delta_pct=-5.1,
+                    label="slow",
+                ),
+                TempoSegment(
+                    start_sec=72.0,
+                    end_sec=240.0,
+                    local_bpm=138.0,
+                    delta_pct=7.4,
+                    label="fast",
+                ),
+            ],
+            trend="accelerando",
+            method="curve-test",
         ),
         genre=GenreResult(
             top=GenreScore(label="Pop music", score=0.42),
@@ -112,7 +176,9 @@ def test_render_narrative_includes_key_facts() -> None:
     # 和声
     assert "`A:min`" in md  # 出現上位コード
     assert "Plagal Cadence" in md
-    assert "転調候補" in md
+    # 旧 harmony.modulations は track.modulation がある場合は出ない (置き換え)
+    # 新方式の「時系列キー解析で N 箇所の転調を検出」が出る
+    assert "転調を検出" in md
     # ジャンル
     assert "Pop music" in md
     assert "Jazz" in md
@@ -131,6 +197,37 @@ def test_narrative_handles_no_genre() -> None:
     track_no_genre = track.model_copy(update={"genre": None, "style_notes": []})
     md = render_narrative(track_no_genre)
     assert "ジャンル分類は実行されていません" in md
+
+
+def test_narrative_includes_modulation_changes() -> None:
+    md = render_narrative(_track())
+    # 第 2 章に転調イベントが時刻付きで列挙される
+    assert "1 箇所" in md  # changes count
+    assert "A minor" in md
+    assert "C major" in md
+    assert "relative" in md
+    # フォーマット: "X:XX で <from> → <to>"
+    assert "1:24" in md  # 84.0 秒 = 1:24
+
+
+def test_narrative_includes_tempo_curve_trend_and_segments() -> None:
+    md = render_narrative(_track())
+    # 第 3 章にテンポ推移
+    assert "加速 (accelerando)" in md
+    assert "122.0" in md
+    assert "138.0" in md
+    # 速い区間 / 遅い区間 がそれぞれ列挙される
+    assert "速い区間" in md
+    assert "遅い区間" in md
+
+
+def test_narrative_handles_no_modulation_or_tempo_curve() -> None:
+    """新フィールドが None でも narrative が落ちず、フォールバックが働く。"""
+    track = _track()
+    track_minimal = track.model_copy(update={"modulation": None, "tempo_curve": None})
+    md = render_narrative(track_minimal)
+    # 既存の `harmony.modulations` フォールバックは出る
+    assert "転調候補" in md
 
 
 def test_write_narrative_writes_unicode_filename(tmp_path: Path) -> None:

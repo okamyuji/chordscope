@@ -88,6 +88,18 @@ PD_AUDIO_FIXTURES: tuple[PdAudio, ...] = (
         expected_key=None,
         expected_bpm_range=(70.0, 200.0),
     ),
+    PdAudio(
+        name="sousa_stars_and_stripes_forever.ogg",
+        url="https://upload.wikimedia.org/wikipedia/commons/9/90/Sousa%27s_Band_-_Stars_and_Stripes_Forever.ogg",
+        sha256=None,
+        description=(
+            "Sousa's Band: The Stars and Stripes Forever (1909 録音、約 4 分)。"
+            "Sousa 行進曲。trio で完全 4 度上に転調する典型例。"
+        ),
+        expected_genre_keywords=("March", "Brass", "Wind", "Orchestra", "Classical"),
+        expected_key=None,
+        expected_bpm_range=(80.0, 220.0),
+    ),
 )
 
 
@@ -165,6 +177,11 @@ def pd_afghanistan_path(pd_cache_dir: Path) -> Path:
 
 
 @pytest.fixture(scope="session")
+def pd_sousa_path(pd_cache_dir: Path) -> Path:
+    return _ensure(PD_AUDIO_FIXTURES[4], pd_cache_dir)
+
+
+@pytest.fixture(scope="session")
 def pd_encina_buffer(pd_encina_path: Path) -> AudioBuffer:
     return load_audio(pd_encina_path)
 
@@ -177,6 +194,34 @@ def pd_joplin_sample_buffer(pd_joplin_sample_path: Path) -> AudioBuffer:
 @pytest.fixture(scope="session")
 def pd_joplin_full_buffer(pd_joplin_full_path: Path) -> AudioBuffer:
     return load_audio(pd_joplin_full_path)
+
+
+@pytest.fixture(scope="session")
+def pd_afghanistan_buffer(pd_afghanistan_path: Path) -> AudioBuffer:
+    return load_audio(pd_afghanistan_path)
+
+
+@pytest.fixture(scope="session")
+def pd_sousa_buffer(pd_sousa_path: Path) -> AudioBuffer:
+    return load_audio(pd_sousa_path)
+
+
+@pytest.fixture(scope="session")
+def pd_all_buffers(
+    pd_encina_buffer: AudioBuffer,
+    pd_joplin_sample_buffer: AudioBuffer,
+    pd_joplin_full_buffer: AudioBuffer,
+    pd_afghanistan_buffer: AudioBuffer,
+    pd_sousa_buffer: AudioBuffer,
+) -> dict[str, AudioBuffer]:
+    """5 PD 音源を識別子→AudioBuffer のマップで取得 (AB テスト用)。"""
+    return {
+        "encina_renaissance": pd_encina_buffer,
+        "joplin_sample_ragtime": pd_joplin_sample_buffer,
+        "joplin_full_ragtime": pd_joplin_full_buffer,
+        "afghanistan_1920_jazz": pd_afghanistan_buffer,
+        "sousa_march": pd_sousa_buffer,
+    }
 
 
 def _resolve_user_audio_dir() -> Path:

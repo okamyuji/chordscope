@@ -9,8 +9,10 @@ from chordscope.analyzers.beats import estimate_beats_and_meter
 from chordscope.analyzers.chords import recognize_chords
 from chordscope.analyzers.genre import GenreClassifier
 from chordscope.analyzers.key import estimate_key
+from chordscope.analyzers.modulation import detect_modulation
 from chordscope.analyzers.style import analyze_styles
 from chordscope.analyzers.tempo import estimate_tempo
+from chordscope.analyzers.tempo_curve import analyze_tempo_curve
 from chordscope.analyzers.theory import analyze_harmony
 from chordscope.audio import AudioBuffer, load_audio
 from chordscope.config import AnalysisConfig
@@ -51,6 +53,8 @@ def analyze_file(path: Path, opts: AnalysisOptions) -> TrackAnalysis:
     tempo = estimate_tempo(buffer)
     beats, meter = estimate_beats_and_meter(buffer)
     key = estimate_key(buffer)
+    modulation = detect_modulation(buffer, key)
+    tempo_curve = analyze_tempo_curve(beats, tempo)
     chords = recognize_chords(buffer, engine=opts.chord_engine)  # type: ignore[arg-type]
     harmony = analyze_harmony(chords, key)
     genre = None
@@ -76,6 +80,8 @@ def analyze_file(path: Path, opts: AnalysisOptions) -> TrackAnalysis:
             beats=beats,
             chords=chords,
             tempo=tempo,
+            tempo_curve=tempo_curve,
+            modulation=modulation,
             out_dir=opts.plot_dir,
         )
     return TrackAnalysis(
@@ -88,6 +94,8 @@ def analyze_file(path: Path, opts: AnalysisOptions) -> TrackAnalysis:
         key=key,
         chords=chords,
         harmony=harmony,
+        modulation=modulation,
+        tempo_curve=tempo_curve,
         genre=genre,
         style_notes=styles,
         plot_paths=plot_paths,

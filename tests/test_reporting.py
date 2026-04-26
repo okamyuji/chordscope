@@ -15,10 +15,15 @@ from chordscope.models import (
     GenreResult,
     GenreScore,
     HarmonicAnalysis,
+    KeyChange,
     KeyResult,
+    KeySegment,
     MeterResult,
+    ModulationResult,
     StyleNotes,
+    TempoCurveResult,
     TempoResult,
+    TempoSegment,
     TrackAnalysis,
 )
 from chordscope.reporting.console import render_track
@@ -53,6 +58,65 @@ def _track() -> TrackAnalysis:
             modulations=[],
             chord_categories={"T": 1, "SD": 1},
         ),
+        modulation=ModulationResult(
+            window_sec=16.0,
+            hop_sec=4.0,
+            segments=[
+                KeySegment(
+                    start_sec=0.0,
+                    end_sec=60.0,
+                    tonic="A",
+                    mode="minor",
+                    confidence=0.7,
+                    correlation=0.5,
+                ),
+                KeySegment(
+                    start_sec=60.0,
+                    end_sec=180.0,
+                    tonic="C",
+                    mode="major",
+                    confidence=0.65,
+                    correlation=0.45,
+                ),
+            ],
+            changes=[
+                KeyChange(
+                    at_sec=60.0,
+                    from_tonic="A",
+                    from_mode="minor",
+                    to_tonic="C",
+                    to_mode="major",
+                    interval_semitones=3,
+                    relation="relative",
+                ),
+            ],
+            method="ks-test",
+        ),
+        tempo_curve=TempoCurveResult(
+            window_beats=8,
+            global_bpm=120.5,
+            bpm_min=118.0,
+            bpm_max=128.0,
+            bpm_std=3.5,
+            segments=[
+                TempoSegment(
+                    start_sec=0.0,
+                    end_sec=90.0,
+                    local_bpm=119.0,
+                    delta_pct=-1.2,
+                    label="stable",
+                ),
+                TempoSegment(
+                    start_sec=90.0,
+                    end_sec=180.0,
+                    local_bpm=128.0,
+                    delta_pct=6.2,
+                    label="fast",
+                ),
+            ],
+            trend="accelerando",
+            method="curve-test",
+        ),
         genre=GenreResult(
             top=GenreScore(label="Pop music", score=0.61),
             distribution=[
@@ -80,6 +144,21 @@ def test_render_console_does_not_crash() -> None:
     assert "120.50 BPM" in out
     assert "A minor" in out
     assert "Pop music" in out
+    # 新セクション
+    assert "trend=accelerando" in out
+    assert "modulations=1件" in out
+    assert "Tempo curve segments" in out
+    assert "Key changes" in out
+
+
+def test_render_markdown_includes_tempo_curve_and_modulation() -> None:
+    md = render_markdown(_track())
+    assert "テンポ変動" in md
+    assert "転調検出" in md
+    assert "accelerando" in md
+    assert "relative" in md
+    assert "C major" in md or "C major" in md  # 念のため
+    assert "A minor" in md
 
 
 def test_write_json(tmp_path: Path) -> None:

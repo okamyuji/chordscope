@@ -20,7 +20,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from chordscope.audio import AudioBuffer
-from chordscope.models import BeatResult, ChordResult, TempoResult
+from chordscope.models import (
+    BeatResult,
+    ChordResult,
+    ModulationResult,
+    TempoCurveResult,
+    TempoResult,
+)
 
 
 def _save(fig: plt.Figure, path: Path) -> Path:
@@ -103,17 +109,89 @@ def tempogram_with_bpm(buffer: AudioBuffer, tempo: TempoResult, out_path: Path) 
     return _save(fig, out_path)
 
 
+def tempo_curve_plot(buffer: AudioBuffer, tempo_curve: TempoCurveResult, out_path: Path) -> Path:
+    """局所 BPM 時系列をプロットする。"""
+    fig, ax = plt.subplots(figsize=(12, 3))
+    if tempo_curve.segments:
+        # 各セグメントの中央時刻と local_bpm を結ぶ
+        xs: list[float] = []
+        ys: list[float] = []
+        for seg in tempo_curve.segments:
+            mid = (seg.start_sec + seg.end_sec) / 2.0
+            xs.append(mid)
+            ys.append(seg.local_bpm)
+        ax.plot(xs, ys, marker="o", linewidth=1.5, color="tab:blue", label="local BPM")
+        # 領域塗り (slow=青/stable=緑/fast=赤)
+        color_map = {"slow": "#cce5ff", "stable": "#d4edda", "fast": "#f8d7da"}
+        for seg in tempo_curve.segments:
+            ax.axvspan(seg.start_sec, seg.end_sec, color=color_map[seg.label], alpha=0.4)
+    ax.axhline(
+        tempo_curve.global_bpm,
+        color="red",
+        linewidth=2,
+        linestyle="--",
+        label=f"global {tempo_curve.global_bpm:.1f} BPM",
+    )
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Local BPM")
+    ax.set_title(
+        f"Tempo curve (trend={tempo_curve.trend}, "
+        f"range={tempo_curve.bpm_min:.1f}..{tempo_curve.bpm_max:.1f}) — "
+        f"{_safe_title(buffer.path.name)}"
+    )
+    ax.legend(loc="upper right")
+    return _save(fig, out_path)
+
+
+def key_timeline_plot(buffer: AudioBuffer, modulation: ModulationResult, out_path: Path) -> Path:
+    """時系列のキー帯を描く。"""
+    fig, ax = plt.subplots(figsize=(12, 2.5))
+    cmap = plt.get_cmap("hsv")
+    pitch_to_index = {
+        n: i
+        for i, n in enumerate(["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"])
+    }
+    if modulation.segments:
+        for seg in modulation.segments:
+            color_val = pitch_to_index[seg.tonic] / 12.0
+            color = cmap(color_val)
+            ax.axvspan(
+                seg.start_sec, seg.end_sec, color=color, alpha=0.4 if seg.mode == "major" else 0.7
+            )
+            ax.text(
+                (seg.start_sec + seg.end_sec) / 2.0,
+                0.5,
+                f"{seg.tonic} {seg.mode[:3]}",
+                ha="center",
+                va="center",
+                fontsize=9,
+                color="black",
+            )
+    for ch in modulation.changes:
+        ax.axvline(ch.at_sec, color="black", linewidth=1.2, linestyle=":")
+    ax.set_xlim(0, max(buffer.duration, 1.0))
+    ax.set_ylim(0, 1)
+    ax.set_yticks([])
+    ax.set_xlabel("Time (s)")
+    ax.set_title(
+        f"Key timeline (changes={len(modulation.changes)}) — {_safe_title(buffer.path.name)}"
+    )
+    return _save(fig, out_path)
+
+
 def render_all_plots(
     buffer: AudioBuffer,
     *,
     beats: BeatResult,
     chords: ChordResult,
     tempo: TempoResult,
+    tempo_curve: TempoCurveResult | None = None,
+    modulation: ModulationResult | None = None,
     out_dir: Path,
 ) -> dict[str, Path]:
     stem = buffer.path.stem
     out_dir.mkdir(parents=True, exist_ok=True)
-    return {
+    out: dict[str, Path] = {
         "waveform_beats": waveform_with_beats(
             buffer, beats, out_dir / f"{stem}__waveform_beats.png"
         ),
@@ -123,3 +201,12 @@ def render_all_plots(
         ),
         "tempogram": tempogram_with_bpm(buffer, tempo, out_dir / f"{stem}__tempogram.png"),
     }
+    if tempo_curve is not None:
+        out["tempo_curve"] = tempo_curve_plot(
+            buffer, tempo_curve, out_dir / f"{stem}__tempo_curve.png"
+        )
+    if modulation is not None:
+        out["key_timeline"] = key_timeline_plot(
+            buffer, modulation, out_dir / f"{stem}__key_timeline.png"
+        )
+    return out

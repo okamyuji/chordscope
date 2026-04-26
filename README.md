@@ -19,6 +19,8 @@
 | **調性 (キー) 推定** | Krumhansl-Schmuckler (Temperley 改良プロファイル) を CQT クロマで適用。次点候補も保持 |
 | **コード認識** | madmom Deep Chroma + DCC を主バックエンド。`librosa-template` 副バックエンドは 10 種 × 12 ルート計 120 テンプレート + Viterbi 平滑 |
 | **音楽理論分析** | music21 でローマ数字解析、機能分類 (T/SD/D)、カデンツ検出 (Authentic / Plagal / Deceptive / ii→V)、転調候補 |
+| **転調検出 (Modulation)** | 16 秒スライディングウィンドウ + 4 秒ホップで Krumhansl-Schmuckler を再適用し、`KeySegment` 列と `KeyChange` (時刻 / from→to / 関係) を出力。フラップ抑制 (multi-pass smoothing + 短セグメントマージ) で旋法音楽でも安定 |
+| **テンポ変動 (Tempo Curve)** | `beat_times[]` の中央値間隔から局所 BPM を算出し、global BPM 比 ±5% でセグメント分類 (slow / stable / fast)。線形回帰で trend (stable / accelerando / ritardando / variable) を判定 |
 | **ジャンル分類** | HuggingFace `MIT/ast-finetuned-audioset-10-10-0.4593` (AST + AudioSet 527 クラス)。AudioSet 出力を 163 ジャンルカタログで正規化し、umbrella/mood/機能ラベル除外後に **TOP-5 + family 多様性** (1 family 最大 2 件) で出力 |
 | **ジャンル別観点** | **動的ディスパッチ**: AST top-K ラベルに応じて 80+ キーのヒューリスティックレジストリ (jazz/classic/jpop/rock/blues/hiphop/electronic/country/soul/funk/r&b/metal/punk/reggae/ska/folk/bluegrass/latin/salsa/bossa nova/gospel/ambient/flamenco/world/anime/enka/vocal/soundtrack/musical 等) を起動。未登録ラベルは AST スコアのみ報告 |
 | **ジャンルカタログ** | 163 件 / 14 family (rock / pop / jazz / blues / classical / folk / country / electronic / hiphop / metal / world / latin / religious / soundtrack)。Discogs Styles + AudioSet ontology + 主要音楽辞典から抽出 |

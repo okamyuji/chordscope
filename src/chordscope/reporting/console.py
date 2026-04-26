@@ -23,20 +23,29 @@ def render_track(track: TrackAnalysis, console: Console | None = None) -> None:
     overview.add_column("Item")
     overview.add_column("Value")
     overview.add_column("Detail")
+    tempo_extra = (
+        f", trend={track.tempo_curve.trend}, "
+        f"range={track.tempo_curve.bpm_min:.1f}..{track.tempo_curve.bpm_max:.1f}"
+        if track.tempo_curve is not None
+        else ""
+    )
     overview.add_row(
         "Tempo",
         f"{track.tempo.bpm:.2f} BPM",
-        f"candidates={track.tempo.bpm_candidates} confidence={track.tempo.confidence}",
+        f"candidates={track.tempo.bpm_candidates} confidence={track.tempo.confidence}{tempo_extra}",
     )
     overview.add_row(
         "Meter",
         f"{track.meter.numerator}/{track.meter.denominator}",
         f"confidence={track.meter.confidence}",
     )
+    key_extra = (
+        f", modulations={len(track.modulation.changes)}件" if track.modulation is not None else ""
+    )
     overview.add_row(
         "Key",
         f"{track.key.tonic} {track.key.mode}",
-        f"corr={track.key.correlation} confidence={track.key.confidence}, 2nd={track.key.second_best}",
+        f"corr={track.key.correlation} confidence={track.key.confidence}, 2nd={track.key.second_best}{key_extra}",
     )
     if track.genre is not None:
         top = track.genre.top
@@ -64,6 +73,32 @@ def render_track(track: TrackAnalysis, console: Console | None = None) -> None:
         chord_table.add_row(f"{seg.start:.2f}", f"{seg.end:.2f}", seg.label)
     c.print(chord_table)
 
+    if track.tempo_curve is not None and track.tempo_curve.segments:
+        tc = track.tempo_curve
+        rows = []
+        for seg in tc.segments[:8]:
+            rows.append(
+                f"{seg.start_sec:6.2f}-{seg.end_sec:6.2f}s | "
+                f"{seg.local_bpm:6.2f} BPM ({seg.delta_pct:+.1f}%) | {seg.label}"
+            )
+        c.print(
+            Panel(
+                "\n".join(rows),
+                title=f"Tempo curve segments (top 8 / total {len(tc.segments)}, trend={tc.trend})",
+            )
+        )
+    if track.modulation is not None and track.modulation.changes:
+        rows = [
+            f"{ch.at_sec:7.2f}s | {ch.from_tonic} {ch.from_mode} → "
+            f"{ch.to_tonic} {ch.to_mode} ({ch.interval_semitones:+d}st, {ch.relation})"
+            for ch in track.modulation.changes[:8]
+        ]
+        c.print(
+            Panel(
+                "\n".join(rows),
+                title=f"Key changes (top 8 / total {len(track.modulation.changes)})",
+            )
+        )
     if track.harmony.roman_numerals:
         rn_summary = " ".join(track.harmony.roman_numerals[:24])
         c.print(Panel(rn_summary, title="Roman numerals (first 24)"))

@@ -29,6 +29,19 @@ def render_markdown(track: TrackAnalysis) -> str:
     lines.append(
         f"| Key | {track.key.tonic} {track.key.mode} | corr={track.key.correlation}, conf={track.key.confidence}, 2nd={track.key.second_best} |"
     )
+    if track.tempo_curve is not None:
+        tc = track.tempo_curve
+        lines.append(
+            f"| Tempo curve | trend={tc.trend} | "
+            f"range={tc.bpm_min:.1f}..{tc.bpm_max:.1f} BPM, std={tc.bpm_std:.2f}, "
+            f"segments={len(tc.segments)} |"
+        )
+    if track.modulation is not None:
+        mod = track.modulation
+        lines.append(
+            f"| Modulations | {len(mod.changes)} 箇所 | "
+            f"window={mod.window_sec}s, segments={len(mod.segments)} |"
+        )
     if track.genre is not None:
         lines.append(
             f"| Genre top | {track.genre.top.label} ({track.genre.top.score:.2%}) | model={track.genre.model_id} |"
@@ -42,6 +55,62 @@ def render_markdown(track: TrackAnalysis) -> str:
         for g in track.genre.distribution[:10]:
             lines.append(f"| {g.label} | {g.score:.2%} |")
         lines.append("")
+    if track.tempo_curve is not None:
+        tc = track.tempo_curve
+        lines.append("## テンポ変動 (Tempo Curve)")
+        lines.append("")
+        lines.append(
+            f"global BPM={tc.global_bpm:.2f}, trend=**{tc.trend}**, "
+            f"range [{tc.bpm_min:.2f}..{tc.bpm_max:.2f}] BPM (std {tc.bpm_std:.2f}), "
+            f"window={tc.window_beats} beats, method={tc.method}"
+        )
+        lines.append("")
+        if tc.segments:
+            lines.append("| start (s) | end (s) | local BPM | Δ% | label |")
+            lines.append("|---:|---:|---:|---:|---|")
+            for seg in tc.segments:
+                lines.append(
+                    f"| {seg.start_sec:.2f} | {seg.end_sec:.2f} | "
+                    f"{seg.local_bpm:.2f} | {seg.delta_pct:+.1f}% | {seg.label} |"
+                )
+            lines.append("")
+        else:
+            lines.append("(ビート数不足のため局所 BPM を算出できませんでした)")
+            lines.append("")
+    if track.modulation is not None:
+        mod = track.modulation
+        lines.append("## 転調検出 (Modulation)")
+        lines.append("")
+        lines.append(
+            f"window={mod.window_sec}s, hop={mod.hop_sec}s, "
+            f"segments={len(mod.segments)}, changes={len(mod.changes)}, method={mod.method}"
+        )
+        lines.append("")
+        if mod.segments:
+            lines.append("### キー時系列")
+            lines.append("")
+            lines.append("| start (s) | end (s) | tonic | mode | conf |")
+            lines.append("|---:|---:|---|---|---:|")
+            for seg in mod.segments:
+                lines.append(
+                    f"| {seg.start_sec:.2f} | {seg.end_sec:.2f} | "
+                    f"{seg.tonic} | {seg.mode} | {seg.confidence:.2f} |"
+                )
+            lines.append("")
+        if mod.changes:
+            lines.append("### 転調イベント")
+            lines.append("")
+            lines.append("| at (s) | from | to | interval (semitones) | relation |")
+            lines.append("|---:|---|---|---:|---|")
+            for ch in mod.changes:
+                lines.append(
+                    f"| {ch.at_sec:.2f} | {ch.from_tonic} {ch.from_mode} | "
+                    f"{ch.to_tonic} {ch.to_mode} | {ch.interval_semitones:+d} | {ch.relation} |"
+                )
+            lines.append("")
+        else:
+            lines.append("(転調イベントは検出されませんでした)")
+            lines.append("")
     lines.append(
         f"## コード進行 (engine={track.chords.method}, total={len(track.chords.segments)})"
     )

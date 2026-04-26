@@ -14,15 +14,28 @@ from chordscope.audio import AudioBuffer
 from chordscope.models import KeyResult
 
 # Temperley (1999) Kostka-Payne 改良プロファイル
-_KS_MAJOR = np.array([5.0, 2.0, 3.5, 2.0, 4.5, 4.0, 2.0, 4.5, 2.0, 3.5, 1.5, 4.0])
-_KS_MINOR = np.array([5.0, 2.0, 3.5, 4.5, 2.0, 4.0, 2.0, 4.5, 3.5, 2.0, 1.5, 4.0])
+KS_MAJOR = np.array([5.0, 2.0, 3.5, 2.0, 4.5, 4.0, 2.0, 4.5, 2.0, 3.5, 1.5, 4.0])
+KS_MINOR = np.array([5.0, 2.0, 3.5, 4.5, 2.0, 4.0, 2.0, 4.5, 3.5, 2.0, 1.5, 4.0])
 
-_PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+# 旧 private 名のエイリアス (modulation.py が使うので削除しない)
+_KS_MAJOR = KS_MAJOR
+_KS_MINOR = KS_MINOR
+_PITCH_NAMES = PITCH_NAMES
+
+KEY_HOP_LENGTH = 2048
 
 
-def _avg_chroma(buffer: AudioBuffer) -> np.ndarray:
-    """CQT クロマ → 強度の高い 80% フレームを平均。"""
-    chroma = librosa.feature.chroma_cqt(y=buffer.samples, sr=buffer.sample_rate, hop_length=2048)
+def compute_chroma(buffer: AudioBuffer, *, hop_length: int = KEY_HOP_LENGTH) -> np.ndarray:
+    """CQT クロマを計算する。`avg_chroma` と `modulation.detect_modulation` で共用。"""
+    return librosa.feature.chroma_cqt(
+        y=buffer.samples, sr=buffer.sample_rate, hop_length=hop_length
+    )
+
+
+def avg_chroma_from_matrix(chroma: np.ndarray) -> np.ndarray:
+    """事前計算済みクロマ行列から「強度の高い 80% フレーム」の平均ベクトルを返す。"""
     energy = chroma.sum(axis=0)
     if len(energy) > 4:
         threshold = np.quantile(energy, 0.2)
@@ -31,14 +44,24 @@ def _avg_chroma(buffer: AudioBuffer) -> np.ndarray:
     return chroma.mean(axis=1)
 
 
+def _avg_chroma(buffer: AudioBuffer) -> np.ndarray:
+    """CQT クロマ → 強度の高い 80% フレームを平均。"""
+    return avg_chroma_from_matrix(compute_chroma(buffer))
+
+
+def correlate_chroma(chroma_mean: np.ndarray) -> tuple[list[float], list[float]]:
+    """各 root に major/minor プロファイルとの相関を計算 (public API)。"""
+    return _correlations(chroma_mean)
+
+
 def _correlations(chroma_mean: np.ndarray) -> tuple[list[float], list[float]]:
     """各 root に major/minor プロファイルとの相関を計算。"""
     maj_corrs: list[float] = []
     min_corrs: list[float] = []
     chroma_centered = chroma_mean - chroma_mean.mean()
     for shift in range(12):
-        maj = np.roll(_KS_MAJOR, shift)
-        mn = np.roll(_KS_MINOR, shift)
+        maj = np.roll(KS_MAJOR, shift)
+        mn = np.roll(KS_MINOR, shift)
         maj_centered = maj - maj.mean()
         mn_centered = mn - mn.mean()
         maj_corr = float(
@@ -59,8 +82,8 @@ def estimate_key(buffer: AudioBuffer) -> KeyResult:
     maj, mn = _correlations(chroma_mean)
     flat: list[tuple[float, str, str]] = []
     for i in range(12):
-        flat.append((maj[i], _PITCH_NAMES[i], "major"))
-        flat.append((mn[i], _PITCH_NAMES[i], "minor"))
+        flat.append((maj[i], PITCH_NAMES[i], "major"))
+        flat.append((mn[i], PITCH_NAMES[i], "minor"))
     flat.sort(reverse=True, key=lambda t: t[0])
     best_corr, best_tonic, best_mode = flat[0]
     second_corr, second_tonic, second_mode = flat[1]

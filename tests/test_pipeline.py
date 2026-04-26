@@ -43,7 +43,15 @@ def test_full_pipeline_on_pd_joplin(
     assert len(result.chords.segments) > 0
     assert result.genre is not None
     assert len(result.style_notes) == 4
-    assert len(result.plot_paths) == 4
+    # tempo_curve / modulation の存在確認
+    assert result.tempo_curve is not None
+    assert result.tempo_curve.global_bpm == pytest.approx(result.tempo.bpm, abs=0.05)
+    assert result.modulation is not None
+    assert len(result.modulation.segments) >= 1
+    # プロット: 既存 4 + 新規 2 = 6
+    assert len(result.plot_paths) == 6
+    assert "tempo_curve" in result.plot_paths
+    assert "key_timeline" in result.plot_paths
     for p in result.plot_paths.values():
         assert p.exists() and p.stat().st_size > 0
 

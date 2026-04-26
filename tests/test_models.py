@@ -14,9 +14,14 @@ from chordscope.models import (
     GenreResult,
     GenreScore,
     HarmonicAnalysis,
+    KeyChange,
     KeyResult,
+    KeySegment,
     MeterResult,
+    ModulationResult,
+    TempoCurveResult,
     TempoResult,
+    TempoSegment,
     TrackAnalysis,
 )
 
@@ -66,3 +71,103 @@ def test_track_serializes_json() -> None:
     js = t.model_dump_json()
     assert "C:maj" in js
     assert "Pop music" in js
+
+
+def test_key_segment_validates_mode() -> None:
+    with pytest.raises(ValidationError):
+        KeySegment(
+            start_sec=0.0,
+            end_sec=4.0,
+            tonic="C",
+            mode="dorian",  # type: ignore[arg-type]
+            confidence=0.5,
+            correlation=0.4,
+        )
+
+
+def test_key_change_validates_relation() -> None:
+    with pytest.raises(ValidationError):
+        KeyChange(
+            at_sec=10.0,
+            from_tonic="C",
+            from_mode="major",
+            to_tonic="G",
+            to_mode="major",
+            interval_semitones=7,
+            relation="weird",  # type: ignore[arg-type]
+        )
+
+
+def test_modulation_result_is_frozen() -> None:
+    mod = ModulationResult(window_sec=16.0, hop_sec=4.0, segments=[], changes=[], method="x")
+    with pytest.raises(ValidationError):
+        mod.window_sec = 8.0  # type: ignore[misc]
+
+
+def test_tempo_curve_validates_trend() -> None:
+    with pytest.raises(ValidationError):
+        TempoCurveResult(
+            window_beats=8,
+            global_bpm=120.0,
+            bpm_min=110.0,
+            bpm_max=130.0,
+            bpm_std=2.0,
+            segments=[],
+            trend="oscillating",  # type: ignore[arg-type]
+            method="x",
+        )
+
+
+def test_tempo_segment_validates_label() -> None:
+    with pytest.raises(ValidationError):
+        TempoSegment(
+            start_sec=0.0,
+            end_sec=4.0,
+            local_bpm=120.0,
+            delta_pct=0.0,
+            label="medium",  # type: ignore[arg-type]
+        )
+
+
+def test_track_with_modulation_and_tempo_curve_serializes() -> None:
+    t = _make_track().model_copy(
+        update={
+            "modulation": ModulationResult(
+                window_sec=16.0,
+                hop_sec=4.0,
+                segments=[
+                    KeySegment(
+                        start_sec=0.0,
+                        end_sec=20.0,
+                        tonic="C",
+                        mode="major",
+                        confidence=0.8,
+                        correlation=0.7,
+                    )
+                ],
+                changes=[],
+                method="ks-test",
+            ),
+            "tempo_curve": TempoCurveResult(
+                window_beats=8,
+                global_bpm=120.0,
+                bpm_min=118.0,
+                bpm_max=124.0,
+                bpm_std=1.5,
+                segments=[
+                    TempoSegment(
+                        start_sec=0.0,
+                        end_sec=10.0,
+                        local_bpm=120.0,
+                        delta_pct=0.0,
+                        label="stable",
+                    )
+                ],
+                trend="stable",
+                method="curve-test",
+            ),
+        }
+    )
+    payload = t.model_dump_json()
+    assert "ks-test" in payload
+    assert "curve-test" in payload

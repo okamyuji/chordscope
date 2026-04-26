@@ -93,9 +93,28 @@ def _format_harmony(track: TrackAnalysis) -> list[str]:
         cad_text = ", ".join(track.harmony.cadences[:3])
         suffix = " 他" if len(track.harmony.cadences) > 3 else ""
         lines.append(f"- カデンツ検出 ({len(track.harmony.cadences)} 種): {cad_text}{suffix}")
-    if track.harmony.modulations:
+    if track.modulation is not None and track.modulation.changes:
+        ch_count = len(track.modulation.changes)
+        first = track.modulation.changes[0]
+        rel = first.relation
+        m1, s1 = int(first.at_sec // 60), int(first.at_sec % 60)
         lines.append(
-            f"- 転調候補 **{len(track.harmony.modulations)} 箇所** → "
+            f"- 時系列キー解析で **{ch_count} 箇所** の転調を検出 "
+            f"(初回 {m1}:{s1:02d} で {first.from_tonic} {first.from_mode} → "
+            f"{first.to_tonic} {first.to_mode}, 関係: {rel})"
+        )
+        # 主要 3 件まで列挙
+        for ch in track.modulation.changes[1:3]:
+            mm, ss = int(ch.at_sec // 60), int(ch.at_sec % 60)
+            lines.append(
+                f"  - {mm}:{ss:02d}: {ch.from_tonic} {ch.from_mode} → "
+                f"{ch.to_tonic} {ch.to_mode} ({ch.relation})"
+            )
+    elif track.modulation is not None:
+        lines.append("- 時系列キー解析: 転調なし — 単一キーで通された構成")
+    elif track.harmony.modulations:
+        lines.append(
+            f"- 転調候補 (粗推定) **{len(track.harmony.modulations)} 箇所** → "
             "セクションごとに調が揺らぐ展開的構成"
         )
     lines.append("")
@@ -127,6 +146,36 @@ def _format_rhythm(track: TrackAnalysis) -> list[str]:
             f"- 検出ビート数 {len(track.beats.beat_times)} "
             f"(うちダウンビート {len(track.beats.downbeat_times)})"
         )
+    if track.tempo_curve is not None:
+        tc = track.tempo_curve
+        trend_jp = {
+            "stable": "安定",
+            "accelerando": "**加速 (accelerando)**",
+            "ritardando": "**減速 (ritardando)**",
+            "variable": "**変動的**",
+        }.get(tc.trend, tc.trend)
+        lines.append(
+            f"- テンポ推移: {trend_jp} "
+            f"(範囲 {tc.bpm_min:.1f}〜{tc.bpm_max:.1f} BPM, 標準偏差 {tc.bpm_std:.2f})"
+        )
+        slow = [s for s in tc.segments if s.label == "slow"]
+        fast = [s for s in tc.segments if s.label == "fast"]
+        if fast:
+            top_fast = max(fast, key=lambda s: s.delta_pct)
+            mm1, ss1 = int(top_fast.start_sec // 60), int(top_fast.start_sec % 60)
+            mm2, ss2 = int(top_fast.end_sec // 60), int(top_fast.end_sec % 60)
+            lines.append(
+                f"  - 速い区間: {mm1}:{ss1:02d}-{mm2}:{ss2:02d} "
+                f"({top_fast.local_bpm:.1f} BPM, {top_fast.delta_pct:+.1f}%)"
+            )
+        if slow:
+            top_slow = min(slow, key=lambda s: s.delta_pct)
+            mm1, ss1 = int(top_slow.start_sec // 60), int(top_slow.start_sec % 60)
+            mm2, ss2 = int(top_slow.end_sec // 60), int(top_slow.end_sec % 60)
+            lines.append(
+                f"  - 遅い区間: {mm1}:{ss1:02d}-{mm2}:{ss2:02d} "
+                f"({top_slow.local_bpm:.1f} BPM, {top_slow.delta_pct:+.1f}%)"
+            )
     lines.append("")
     return lines
 

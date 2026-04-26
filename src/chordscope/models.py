@@ -19,11 +19,16 @@ __all__ = [
     "GenreResult",
     "GenreScore",
     "HarmonicAnalysis",
+    "KeyChange",
     "KeyResult",
+    "KeySegment",
     "MeterResult",
+    "ModulationResult",
     "StyleName",
     "StyleNotes",
+    "TempoCurveResult",
     "TempoResult",
+    "TempoSegment",
     "TrackAnalysis",
 ]
 
@@ -125,6 +130,62 @@ class StyleNotes(_Frozen):
     metrics: dict[str, float] = Field(default_factory=dict)
 
 
+class KeySegment(_Frozen):
+    """ある時間区間における局所キー推定。"""
+
+    start_sec: float = Field(..., ge=0.0)
+    end_sec: float = Field(..., ge=0.0)
+    tonic: str
+    mode: Literal["major", "minor"]
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    correlation: float
+
+
+class KeyChange(_Frozen):
+    """転調イベント (前後 2 つの KeySegment の境界)。"""
+
+    at_sec: float = Field(..., ge=0.0)
+    from_tonic: str
+    from_mode: Literal["major", "minor"]
+    to_tonic: str
+    to_mode: Literal["major", "minor"]
+    interval_semitones: int = Field(..., description="前後の主音差。-6..+6 に正規化済み")
+    relation: Literal["dominant", "subdominant", "relative", "parallel", "chromatic", "other"]
+
+
+class ModulationResult(_Frozen):
+    """全曲の局所キー時系列と転調イベント。"""
+
+    window_sec: float = Field(..., gt=0.0)
+    hop_sec: float = Field(..., gt=0.0)
+    segments: list[KeySegment] = Field(default_factory=list)
+    changes: list[KeyChange] = Field(default_factory=list)
+    method: str
+
+
+class TempoSegment(_Frozen):
+    """ある区間の局所 BPM とラベル。"""
+
+    start_sec: float = Field(..., ge=0.0)
+    end_sec: float = Field(..., ge=0.0)
+    local_bpm: float = Field(..., gt=0.0)
+    delta_pct: float = Field(..., description="global BPM 比 (-15.0 = 15% 遅い)")
+    label: Literal["slow", "stable", "fast"]
+
+
+class TempoCurveResult(_Frozen):
+    """局所 BPM 時系列 + 統計。"""
+
+    window_beats: int = Field(..., ge=2)
+    global_bpm: float = Field(..., gt=0.0)
+    bpm_min: float = Field(..., ge=0.0)
+    bpm_max: float = Field(..., ge=0.0)
+    bpm_std: float = Field(..., ge=0.0)
+    segments: list[TempoSegment] = Field(default_factory=list)
+    trend: Literal["stable", "accelerando", "ritardando", "variable"]
+    method: str
+
+
 class TrackAnalysis(_Frozen):
     """1 曲分の最終分析結果。"""
 
@@ -138,6 +199,8 @@ class TrackAnalysis(_Frozen):
     key: KeyResult
     chords: ChordResult
     harmony: HarmonicAnalysis
+    modulation: ModulationResult | None = None
+    tempo_curve: TempoCurveResult | None = None
     genre: GenreResult | None = None
     style_notes: list[StyleNotes] = Field(default_factory=list)
 
