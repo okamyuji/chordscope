@@ -2,6 +2,9 @@ version = 1
 revision = 3
 requires-python = "==3.11.*"
 
+[manifest]
+constraints = [{ name = "setuptools", specifier = "<83" }]
+
 [[package]]
 name = "annotated-doc"
 version = "0.0.4"

@@ -41,6 +41,15 @@ build-backend = "uv_build"
 
 [tool.uv]
 extra-build-dependencies = { madmom = ["Cython", "numpy"] }
+# setuptools 83.0.0 で pkg_resources が削除されたが、madmom (0.16.1 が最終リリースで
+# 以後更新なし) が実行時に pkg_resources を import するため、83 以上では import 段階で
+# 落ちる。
+#
+# Dependabot が指摘する GHSA-h35f-9h28-mq5c (medium) は setuptools で sdist を作る際の
+# MANIFEST.in 除外回避で、本プロジェクトはビルドバックエンドが uv_build であり
+# setuptools のビルド経路を一切通らないため影響しない。madmom 側が pkg_resources を
+# 外すか代替に移行するまで 83 未満に固定する。
+constraint-dependencies = ["setuptools<83"]
 
 [dependency-groups]
 dev = [
