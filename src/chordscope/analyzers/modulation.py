@@ -101,7 +101,7 @@ def _merge_short_segments(segments: list[KeySegment], min_duration_sec: float) -
                 start_sec=prev.start_sec,
                 end_sec=seg.end_sec,
                 tonic=prev.tonic,
-                mode=prev.mode,  # type: ignore[arg-type]
+                mode=prev.mode,
                 confidence=prev.confidence,
                 correlation=prev.correlation,
             )
@@ -116,7 +116,7 @@ def _merge_short_segments(segments: list[KeySegment], min_duration_sec: float) -
                 start_sec=out[0].start_sec,
                 end_sec=nxt.end_sec,
                 tonic=nxt.tonic,
-                mode=nxt.mode,  # type: ignore[arg-type]
+                mode=nxt.mode,
                 confidence=nxt.confidence,
                 correlation=nxt.correlation,
             )
@@ -222,9 +222,9 @@ def _build_changes(segments: list[KeySegment]) -> list[KeyChange]:
             KeyChange(
                 at_sec=round(b.start_sec, 3),
                 from_tonic=a.tonic,
-                from_mode=a.mode,  # type: ignore[arg-type]
+                from_mode=a.mode,
                 to_tonic=b.tonic,
-                to_mode=b.mode,  # type: ignore[arg-type]
+                to_mode=b.mode,
                 interval_semitones=diff,
                 relation=rel,  # type: ignore[arg-type]
             )

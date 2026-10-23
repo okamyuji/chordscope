@@ -76,10 +76,10 @@ def render_track(track: TrackAnalysis, console: Console | None = None) -> None:
     if track.tempo_curve is not None and track.tempo_curve.segments:
         tc = track.tempo_curve
         rows = []
-        for seg in tc.segments[:8]:
+        for tseg in tc.segments[:8]:
             rows.append(
-                f"{seg.start_sec:6.2f}-{seg.end_sec:6.2f}s | "
-                f"{seg.local_bpm:6.2f} BPM ({seg.delta_pct:+.1f}%) | {seg.label}"
+                f"{tseg.start_sec:6.2f}-{tseg.end_sec:6.2f}s | "
+                f"{tseg.local_bpm:6.2f} BPM ({tseg.delta_pct:+.1f}%) | {tseg.label}"
             )
         c.print(
             Panel(
