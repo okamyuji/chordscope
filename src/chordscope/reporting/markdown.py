@@ -91,10 +91,10 @@ def render_markdown(track: TrackAnalysis) -> str:
             lines.append("")
             lines.append("| start (s) | end (s) | tonic | mode | conf |")
             lines.append("|---:|---:|---|---|---:|")
-            for seg in mod.segments:
+            for mseg in mod.segments:
                 lines.append(
-                    f"| {seg.start_sec:.2f} | {seg.end_sec:.2f} | "
-                    f"{seg.tonic} | {seg.mode} | {seg.confidence:.2f} |"
+                    f"| {mseg.start_sec:.2f} | {mseg.end_sec:.2f} | "
+                    f"{mseg.tonic} | {mseg.mode} | {mseg.confidence:.2f} |"
                 )
             lines.append("")
         if mod.changes:
@@ -117,8 +117,8 @@ def render_markdown(track: TrackAnalysis) -> str:
     lines.append("")
     lines.append("| start (s) | end (s) | chord |")
     lines.append("|---:|---:|---|")
-    for seg in track.chords.segments:
-        lines.append(f"| {seg.start:.2f} | {seg.end:.2f} | `{seg.label}` |")
+    for cseg in track.chords.segments:
+        lines.append(f"| {cseg.start:.2f} | {cseg.end:.2f} | `{cseg.label}` |")
     lines.append("")
     if track.chords.unique_chords:
         lines.append("### ユニークコード")
