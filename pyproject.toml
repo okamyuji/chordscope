@@ -74,7 +74,7 @@ select = [
 ]
 # 日本語コメント中の全角括弧/感嘆符などは多用するので RUF001-003 を許容
 ignore = [
-    "E501", "PLR0913", "ANN401", "PLR2004",
+    "E501", "PLR0913", "PLR0917", "ANN401", "PLR2004",
     "RUF001", "RUF002", "RUF003",
     "PLC0415",  # numpy 等を関数内 import するケースが多数 (madmom 互換のため)
     "B008",     # typer.Option/Argument の引数デフォルトは標準 idiom
