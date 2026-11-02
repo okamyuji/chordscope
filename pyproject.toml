@@ -40,6 +40,8 @@ requires = ["uv_build>=0.9.9,<0.14.0"]
 build-backend = "uv_build"
 
 [tool.uv]
+# Dependabot の cooldown は直接の依存にしか効かないので、推移的な依存にも公開から 3 日の待機をかける
+exclude-newer = "3 days"
 extra-build-dependencies = { madmom = ["Cython", "numpy"] }
 # setuptools 83.0.0 で pkg_resources が削除されたが、madmom (0.16.1 が最終リリースで
 # 以後更新なし) が実行時に pkg_resources を import するため、83 以上では import 段階で
