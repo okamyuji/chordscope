@@ -19,6 +19,10 @@ jobs:
         with:
           enable-cache: true
 
+      # madmom は ogg などの音声を ffmpeg で読む
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Install dependencies
         run: uv sync --locked --all-groups
 
