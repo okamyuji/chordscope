@@ -141,3 +141,29 @@ def test_half_tempo_tracking_dropout_stays_in_global_octave() -> None:
 
     assert abs(res.bpm_min - 120.0) < 1.0
     assert all(seg.label == "stable" for seg in res.segments)
+
+
+def test_tracker_rate_kept_when_global_estimate_is_three_to_two() -> None:
+    """推定器 103.45 BPM、追跡器 66 BPM (約 3:2) の声楽曲の形。局所 BPM は追跡器の値に残る。"""
+    times = (np.arange(64) * (60.0 / 66.0)).tolist()
+
+    res = analyze_tempo_curve(_beats_at(times), _tempo(103.45))
+
+    assert abs(res.bpm_min - 66.0) < 1.0
+    assert abs(res.bpm_max - 66.0) < 1.0
+
+
+def test_slow_tracker_rate_is_lifted_into_canonical_range() -> None:
+    times = (np.arange(64) * 1.02).tolist()  # 58.8 BPM
+
+    res = analyze_tempo_curve(_beats_at(times), _tempo(117.45))
+
+    assert abs(res.bpm_min - 117.6) < 1.0
+    assert res.trend == "stable"
+
+
+def test_single_beat_returns_empty_segments() -> None:
+    res = analyze_tempo_curve(_beats_at([1.0]), _tempo(120.0))
+
+    assert res.segments == []
+    assert res.trend == "stable"

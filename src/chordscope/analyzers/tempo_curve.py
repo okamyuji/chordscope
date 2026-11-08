@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from chordscope.analyzers.tempo import _canonicalize
 from chordscope.models import BeatResult, TempoCurveResult, TempoResult, TempoSegment
 
 DEFAULT_WINDOW_BEATS = 8
@@ -25,28 +26,29 @@ _STABLE_STD_BPM = 2.0
 _TREND_SLOPE_THRESHOLD_BPM_PER_SEC = 0.02
 
 
-def _fold_intervals(intervals: np.ndarray, global_bpm: float) -> np.ndarray:
-    """各拍間隔を 2 倍/半分で、全体の拍周期に最も近いオクターブへ寄せる。
+def _fold_intervals(intervals: np.ndarray) -> np.ndarray:
+    """各拍間隔を、拍間隔の中央値に最も近いオクターブへ寄せ、全体を [60, 180) BPM の周期にそろえる。
 
     追跡が 1 拍おきに落ちた区間は間隔が 2 倍になる。窓の中央値を取ってから畳むと、
     その区間と境目の窓 (2 種の間隔が混ざる) が別テンポとして残る。
-    全体の BPM から ±41% (√2 倍) を超える本物のテンポ変化も畳まれる。
+    基準を global BPM にしないのは、推定器と追跡器のテンポが 3:2 でずれる曲 (声楽など) があるため。
+    中央値から ±41% (√2 倍) を超える本物のテンポ変化も畳まれる。
     """
-    period = 60.0 / global_bpm
-    folded = intervals.copy()
     positive = intervals > 0
+    if not positive.any():
+        return intervals
+    period = float(np.median(intervals[positive]))
+    folded = intervals.copy()
     folded[positive] = intervals[positive] * 2.0 ** np.round(np.log2(period / intervals[positive]))
-    return folded
+    return folded * (60.0 / _canonicalize(60.0 / period)) / period
 
 
-def _local_bpms(
-    beat_times: np.ndarray, window_beats: int, global_bpm: float
-) -> tuple[np.ndarray, np.ndarray]:
+def _local_bpms(beat_times: np.ndarray, window_beats: int) -> tuple[np.ndarray, np.ndarray]:
     """各 window の中央値間隔から局所 BPM とその開始時刻 (window 中央) を返す。
 
     返り値: (window_centers_sec, local_bpms)
     """
-    intervals = _fold_intervals(np.diff(beat_times), global_bpm)
+    intervals = _fold_intervals(np.diff(beat_times))
     if len(intervals) < window_beats:
         return np.empty(0), np.empty(0)
     n_windows = len(intervals) - window_beats + 1
@@ -153,7 +155,7 @@ def analyze_tempo_curve(
     global_bpm = float(tempo.bpm)
     method = f"beat-interval-median (window={window_beats}, stable_pct={stable_pct})"
 
-    centers, bpms = _local_bpms(beat_times, window_beats, global_bpm)
+    centers, bpms = _local_bpms(beat_times, window_beats)
     if len(bpms) == 0:
         return TempoCurveResult(
             window_beats=window_beats,
