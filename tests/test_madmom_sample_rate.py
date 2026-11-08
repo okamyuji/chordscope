@@ -13,7 +13,7 @@ import pytest
 
 from chordscope.analyzers.beats import estimate_beats_and_meter
 from chordscope.analyzers.tempo import estimate_bpm_madmom
-from chordscope.audio import DEFAULT_SR, AudioBuffer
+from chordscope.audio import DEFAULT_SR, MADMOM_SR, AudioBuffer, madmom_samples
 
 _BPM = 100.0
 _DURATION_SEC = 20.0
@@ -59,8 +59,20 @@ def test_madmom_bpm_matches_click_tempo_at_default_sample_rate(
     assert estimate_bpm_madmom(click_buffer) == pytest.approx(_BPM, rel=0.05)
 
 
-def test_beat_times_unchanged_when_buffer_is_already_44100() -> None:
-    buffer = _click_track(_BPM, _DURATION_SEC, 44100)
+def test_madmom_samples_doubles_length_of_22050_buffer(click_buffer: AudioBuffer) -> None:
+    resampled = madmom_samples(click_buffer)
+
+    assert len(resampled) == 2 * len(click_buffer.samples)
+
+
+def test_madmom_samples_returns_44100_buffer_as_is() -> None:
+    buffer = _click_track(_BPM, 1.0, MADMOM_SR)
+
+    assert madmom_samples(buffer) is buffer.samples
+
+
+def test_beat_interval_matches_click_tempo_at_44100() -> None:
+    buffer = _click_track(_BPM, _DURATION_SEC, MADMOM_SR)
 
     beats, _meter = estimate_beats_and_meter(buffer)
 

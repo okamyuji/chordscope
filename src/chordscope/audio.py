@@ -43,6 +43,4 @@ def madmom_samples(buffer: AudioBuffer) -> np.ndarray:
 
     madmom は ndarray を 44100 Hz とみなすため、他の rate のまま渡すと時刻と BPM が歪む。
     """
-    if buffer.sample_rate == MADMOM_SR:
-        return buffer.samples
     return librosa.resample(buffer.samples, orig_sr=buffer.sample_rate, target_sr=MADMOM_SR)
