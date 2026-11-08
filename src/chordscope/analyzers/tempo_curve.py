@@ -26,12 +26,32 @@ _STABLE_STD_BPM = 2.0
 _TREND_SLOPE_THRESHOLD_BPM_PER_SEC = 0.02
 
 
+def _fold_intervals(intervals: np.ndarray) -> np.ndarray:
+    """各拍間隔を、拍間隔の中央値に最も近いオクターブへ寄せ、全体を [60, 180) BPM の周期にそろえる。
+
+    追跡が 1 拍おきに落ちた区間は間隔が 2 倍になる。窓の中央値を取ってから畳むと、
+    その区間と境目の窓 (2 種の間隔が混ざる) が別テンポとして残る。
+    基準を global BPM にしないのは、推定器と追跡器のテンポが 3:2 でずれる曲 (声楽など) があるため。
+    中央値から ±41% (√2 倍) を超える本物のテンポ変化も畳まれる。
+    中央値は実在する間隔から選ぶ。取りこぼしがちょうど半数だと、平均を取る中央値は
+    2 種の間 (どちらでもない間隔) になる。同数なら短い方を選ぶのは、取りこぼしが間隔を
+    2 倍にするだけで半分にはしないため。
+    """
+    positive = intervals > 0
+    if not positive.any():
+        return intervals
+    period = float(np.quantile(intervals[positive], 0.5, method="lower"))
+    folded = intervals.copy()
+    folded[positive] = intervals[positive] * 2.0 ** np.round(np.log2(period / intervals[positive]))
+    return folded * (60.0 / _canonicalize(60.0 / period)) / period
+
+
 def _local_bpms(beat_times: np.ndarray, window_beats: int) -> tuple[np.ndarray, np.ndarray]:
     """各 window の中央値間隔から局所 BPM とその開始時刻 (window 中央) を返す。
 
     返り値: (window_centers_sec, local_bpms)
     """
-    intervals = np.diff(beat_times)
+    intervals = _fold_intervals(np.diff(beat_times))
     if len(intervals) < window_beats:
         return np.empty(0), np.empty(0)
     n_windows = len(intervals) - window_beats + 1
@@ -42,7 +62,7 @@ def _local_bpms(beat_times: np.ndarray, window_beats: int) -> tuple[np.ndarray, 
         if med <= 0:
             bpms[i] = 0.0
         else:
-            bpms[i] = _canonicalize(60.0 / med)
+            bpms[i] = 60.0 / med
         # window 中央の時刻
         centers[i] = float((beat_times[i] + beat_times[i + window_beats]) / 2.0)
     return centers, bpms

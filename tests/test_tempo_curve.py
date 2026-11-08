@@ -122,3 +122,63 @@ def test_segments_are_time_ordered_and_contiguous() -> None:
         # マージ後の連続性は終端 == 次の開始ではないこともある (window center 採用)
         # ただし end >= start を必ず満たす
         assert res.segments[i].end_sec >= res.segments[i].start_sec
+
+
+def _half_tempo_dropout_times() -> list[float]:
+    """120 BPM の途中 20 拍ぶんだけ、追跡が 1 拍おき (60 BPM) に落ちたビート列。"""
+    intervals = np.concatenate([np.full(40, 0.5), np.full(10, 1.0), np.full(40, 0.5)])
+    return np.cumsum(np.concatenate([[0.0], intervals])).tolist()
+
+
+def test_half_tempo_tracking_dropout_keeps_trend_stable() -> None:
+    """一定テンポでも、追跡の取りこぼし区間が別テンポに見えて trend を誤らせていた。"""
+    res = analyze_tempo_curve(_beats_at(_half_tempo_dropout_times()), _tempo(120.0))
+
+    assert res.trend == "stable"
+
+
+def test_half_tempo_tracking_dropout_stays_in_global_octave() -> None:
+    """取りこぼし区間の窓だけ半分の BPM (60) が bpm_min に残り、slow と判定されていた。"""
+    res = analyze_tempo_curve(_beats_at(_half_tempo_dropout_times()), _tempo(120.0))
+
+    assert abs(res.bpm_min - 120.0) < 1.0
+    assert all(seg.label == "stable" for seg in res.segments)
+
+
+def test_tracker_rate_kept_when_global_estimate_is_three_to_two() -> None:
+    """推定器 103.45 BPM、追跡器 66 BPM (約 3:2) の声楽曲の形。局所 BPM は追跡器の値に残る。"""
+    times = (np.arange(64) * (60.0 / 66.0)).tolist()
+
+    res = analyze_tempo_curve(_beats_at(times), _tempo(103.45))
+
+    assert abs(res.bpm_min - 66.0) < 1.0
+    assert abs(res.bpm_max - 66.0) < 1.0
+
+
+def test_slow_tracker_rate_is_lifted_into_canonical_range() -> None:
+    """ピアノ独奏曲の形。追跡器が 58.8 BPM で拍を取っても、系列は 1 つの倍率で 117.6 に上がる。"""
+    times = (np.arange(64) * 1.02).tolist()  # 58.8 BPM
+
+    res = analyze_tempo_curve(_beats_at(times), _tempo(117.45))
+
+    assert abs(res.bpm_min - 117.6) < 1.0
+    assert res.trend == "stable"
+
+
+def test_single_beat_returns_empty_segments() -> None:
+    """拍間隔が空のとき、中央値の計算 (空配列) に進まない。"""
+    res = analyze_tempo_curve(_beats_at([1.0]), _tempo(120.0))
+
+    assert res.segments == []
+    assert res.trend == "stable"
+
+
+def test_equal_half_tempo_split_keeps_the_shorter_interval() -> None:
+    """取りこぼしが拍間隔のちょうど半数のとき、中央値は 2 種の間 (実在しない間隔) に落ちる。"""
+    intervals = np.concatenate([np.full(32, 0.5), np.full(32, 1.0)])
+    times = np.cumsum(np.concatenate([[0.0], intervals])).tolist()
+
+    res = analyze_tempo_curve(_beats_at(times), _tempo(120.0))
+
+    assert abs(res.bpm_min - 120.0) < 1.0
+    assert all(seg.label == "stable" for seg in res.segments)
