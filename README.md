@@ -21,6 +21,7 @@
 | **音楽理論分析** | music21 でローマ数字解析、機能分類 (T/SD/D)、カデンツ検出 (Authentic / Plagal / Deceptive / ii→V)、転調候補 |
 | **転調検出 (Modulation)** | 16 秒スライディングウィンドウ + 4 秒ホップで Krumhansl-Schmuckler を再適用し、`KeySegment` 列と `KeyChange` (時刻 / from→to / 関係) を出力。フラップ抑制 (multi-pass smoothing + 短セグメントマージ) で旋法音楽でも安定 |
 | **テンポ変動 (Tempo Curve)** | `beat_times[]`の各拍間隔を中央値のオクターブへ寄せ、系列全体を1つの倍率で[60, 180) BPMの周期にそろえてから、8拍窓の中央値間隔で局所BPMを算出し（1.5秒の等間隔は80 BPMになる）、global BPM 比 ±5% でセグメント分類 (slow / stable / fast)。線形回帰で trend (stable / accelerando / ritardando / variable) を判定 |
+| 拍の確かさ (Pulse) | 拍のない曲にもビート追跡は拍を返すので、拍に依存する値を参考扱いにする印を付ける。拍間隔の90%以上が中央値の±15%に入るか、中音帯（200〜2000 Hz）のスペクトルフラックスに拍の周期が現れるか（自己相関0.1以上）、低音・中音・高音帯のどれかの周期が追跡した拍と2の冪倍で一致するかを見る。1つでも外れれば`uncertain`とし、理由をJSONの`pulse`、Markdownの概要表、分析文のリズムの章に出す |
 | **ジャンル分類** | HuggingFace `MIT/ast-finetuned-audioset-10-10-0.4593` (AST + AudioSet 527 クラス)。AudioSet 出力を 163 ジャンルカタログで正規化し、umbrella/mood/機能ラベル除外後に **TOP-5 + family 多様性** (1 family 最大 2 件) で出力 |
 | **ジャンル別観点** | **動的ディスパッチ**: AST top-K ラベルに応じて 80+ キーのヒューリスティックレジストリ (jazz/classic/jpop/rock/blues/hiphop/electronic/country/soul/funk/r&b/metal/punk/reggae/ska/folk/bluegrass/latin/salsa/bossa nova/gospel/ambient/flamenco/world/anime/enka/vocal/soundtrack/musical 等) を起動。未登録ラベルは AST スコアのみ報告 |
 | **ジャンルカタログ** | 163 件 / 14 family (rock / pop / jazz / blues / classical / folk / country / electronic / hiphop / metal / world / latin / religious / soundtrack)。Discogs Styles + AudioSet ontology + 主要音楽辞典から抽出 |
@@ -162,6 +163,7 @@ chordscope/
 │   │   ├── tempo.py           # BPM 推定 (3 手法 + オクターブ正規化)
 │   │   ├── tempo_curve.py     # 局所 BPM 時系列 + trend (accelerando/ritardando)
 │   │   ├── beats.py           # ビート/ダウンビート/拍子 (parsimony)
+│   │   ├── pulse.py           # 拍の確かさ (拍間隔のそろい + 帯域別の拍周期)
 │   │   ├── key.py             # 調性 (KS-Temperley)
 │   │   ├── modulation.py      # 時系列 KS スライディング窓 + フラップ抑制で転調検出
 │   │   ├── chords.py          # コード認識 (madmom / librosa-template)
@@ -236,6 +238,7 @@ PD 音源テストは厳密な数値一致ではなく「音楽学的に妥当�
 - **精度最優先**: 入力音源は全長を解析する (サンプリング省略なし)。10 秒窓 / 5 秒ホップでジャンル推論を行い、softmax/sigmoid を平均集約する。
 - **マルチアルゴリズム集約**: BPM は 3 手法 → オクターブ正規化 → 中央値 + 一致度信頼度。拍子は各候補で独立 DBN → 信頼度 92% 以内なら最小値優先。
 - BPMが120付近に寄る偏り 3推定器のうちlibrosaの2つ（`beat.beat_track`と`feature.tempo`）は、既定の事前値`start_bpm=120`に引かれる。採用BPMは3つの中央値なので、ビート追跡（madmom）が60台で拍を数える遅い曲でも、librosaの2つが倍の値を返すと120前後になる。追跡器が数えた拍の速さは、`beat_times[]`の間隔から求める。
+- 拍の確かさのしきい値は経験則である。ファンク、ミニマル、映画音楽の19曲で決め、ルネサンス声楽、ラグタイム、行進曲、フォックストロット、ロックの7曲で確かめた。中音帯の0.1は、拍のない側の最大0.073と、拍のある側の最小0.119の間にある。
 - テンポ変動のオクターブ扱い ビート追跡は、ところどころで1拍おきにしか拍を取らない。そのままでは、その区間が半分のテンポに見える。そこで各拍間隔を、拍間隔の中央値に最も近いオクターブ（2倍か半分）へ寄せてから局所BPMを出す。代わりに、テンポが実際に倍や半分へ切り替わる区間も、元のテンポとして扱う。対象は、拍間隔と中央値の比が√2倍を超えるか、1/√2倍を下回る変化である。区間のラベルは、そのテンポと全体BPMの差で決まり、差が5%未満ならstableになる。推定器が別のオクターブを選んだ曲や、追跡器と推定器のテンポがずれる曲では、slowやfastになる。
 - **ファイル名 Unicode**: 全パイプライン (discovery / load / madmom / 出力) で日本語・全角空白・拉丁系アクセント・括弧を含むファイル名を扱う。Markdown 画像リンクは `urllib.parse.quote` でエンコード。
 
