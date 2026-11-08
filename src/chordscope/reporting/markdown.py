@@ -29,6 +29,12 @@ def render_markdown(track: TrackAnalysis) -> str:
     lines.append(
         f"| Key | {track.key.tonic} {track.key.mode} | corr={track.key.correlation}, conf={track.key.confidence}, 2nd={track.key.second_best} |"
     )
+    if track.pulse is not None:
+        pulse = track.pulse
+        lines.append(
+            f"| Pulse | {'uncertain' if pulse.uncertain else 'clear'} | "
+            f"grid={pulse.grid_ratio:.3f}, reasons={','.join(pulse.reasons) or '-'} |"
+        )
     if track.tempo_curve is not None:
         tc = track.tempo_curve
         lines.append(

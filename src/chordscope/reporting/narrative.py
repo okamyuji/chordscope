@@ -121,6 +121,19 @@ def _format_harmony(track: TrackAnalysis) -> list[str]:
     return lines
 
 
+def _pulse_reason_text(track: TrackAnalysis) -> list[str]:
+    pulse = track.pulse
+    if pulse is None:
+        return []
+    texts = {
+        "too_few_beats": "検出ビートが少なすぎる",
+        "low_grid_ratio": f"拍間隔のそろい {pulse.grid_ratio:.2f} (0.90 未満)",
+        "weak_mid_band_pulse": "中音帯の拍周期が弱い",
+        "no_band_matches_beat": "どの帯域の周期も追跡した拍と合わない",
+    }
+    return [texts[r] for r in pulse.reasons]
+
+
 def _format_rhythm(track: TrackAnalysis) -> list[str]:
     lines = [_section_header(3, "リズム・グルーヴの性格"), ""]
     bpm = track.tempo.bpm
@@ -128,6 +141,11 @@ def _format_rhythm(track: TrackAnalysis) -> list[str]:
     lines.append(
         f"- {track.meter.numerator}/{track.meter.denominator} + {bpm:.2f} BPM → **{band}**"
     )
+    if track.pulse is not None and track.pulse.uncertain:
+        lines.append(
+            f"- **拍が不確か** ({', '.join(_pulse_reason_text(track))}) → "
+            "テンポ推移・シンコペーション・小節単位の値は参考扱い"
+        )
     sync_idx: float | None = None
     for sn in track.style_notes:
         if "syncopation_index" in sn.metrics:
