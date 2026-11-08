@@ -14,7 +14,7 @@ from collections import Counter
 import numpy as np
 from madmom.features.downbeats import DBNDownBeatTrackingProcessor, RNNDownBeatProcessor
 
-from chordscope.audio import AudioBuffer
+from chordscope.audio import AudioBuffer, madmom_samples
 from chordscope.models import BeatResult, MeterResult
 
 _BEATS_PER_BAR_CANDIDATES = [2, 3, 4, 5, 6, 7]
@@ -55,7 +55,7 @@ def estimate_beats_and_meter(buffer: AudioBuffer) -> tuple[BeatResult, MeterResu
     最も小さい bpb を優先する (有意なスコア差がない場合)。
     """
     rnn = RNNDownBeatProcessor()
-    activations = rnn(buffer.samples)
+    activations = rnn(madmom_samples(buffer))
     scored: list[tuple[float, int, np.ndarray]] = []
     for bpb in _BEATS_PER_BAR_CANDIDATES:
         result = _run_dbn_single(activations, bpb)
