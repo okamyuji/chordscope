@@ -13,7 +13,7 @@ import numpy as np
 from madmom.features.beats import RNNBeatProcessor
 from madmom.features.tempo import TempoEstimationProcessor
 
-from chordscope.audio import AudioBuffer
+from chordscope.audio import AudioBuffer, madmom_samples
 from chordscope.models import TempoResult
 
 # 同一とみなす BPM 差 (整数刻み・倍テンポ補正を考慮)
@@ -40,7 +40,7 @@ def _bpm_close(a: float, b: float, tol: float) -> bool:
 def estimate_bpm_madmom(buffer: AudioBuffer) -> float:
     """madmom RNN ビート活性 + テンポ推定 (DBN/comb)。"""
     proc = RNNBeatProcessor()  # 学習済みネット
-    activations = proc(buffer.samples)
+    activations = proc(madmom_samples(buffer))
     tempo_proc = TempoEstimationProcessor(fps=100)
     candidates = tempo_proc(activations)
     if candidates is None or len(candidates) == 0:

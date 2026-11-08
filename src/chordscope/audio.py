@@ -13,6 +13,7 @@ import librosa
 import numpy as np
 
 DEFAULT_SR = 22050  # librosa default; 多くの推定器の前提
+MADMOM_SR = 44100
 
 
 @dataclass(frozen=True)
@@ -35,3 +36,11 @@ def load_audio(path: Path, *, sr: int | None = DEFAULT_SR, mono: bool = True) ->
     samples = np.asarray(samples, dtype=np.float32)
     duration = float(len(samples) / float(used_sr))
     return AudioBuffer(samples=samples, sample_rate=int(used_sr), duration=duration, path=path)
+
+
+def madmom_samples(buffer: AudioBuffer) -> np.ndarray:
+    """madmom の Processor 用に 44100 Hz へ揃えた波形を返す。
+
+    madmom は ndarray を 44100 Hz とみなすため、他の rate のまま渡すと時刻と BPM が歪む。
+    """
+    return librosa.resample(buffer.samples, orig_sr=buffer.sample_rate, target_sr=MADMOM_SR)
