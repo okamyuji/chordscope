@@ -122,3 +122,22 @@ def test_segments_are_time_ordered_and_contiguous() -> None:
         # マージ後の連続性は終端 == 次の開始ではないこともある (window center 採用)
         # ただし end >= start を必ず満たす
         assert res.segments[i].end_sec >= res.segments[i].start_sec
+
+
+def _half_tempo_dropout_times() -> list[float]:
+    """120 BPM の途中 20 拍ぶんだけ、追跡が 1 拍おき (60 BPM) に落ちたビート列。"""
+    intervals = np.concatenate([np.full(40, 0.5), np.full(10, 1.0), np.full(40, 0.5)])
+    return np.cumsum(np.concatenate([[0.0], intervals])).tolist()
+
+
+def test_half_tempo_tracking_dropout_keeps_trend_stable() -> None:
+    res = analyze_tempo_curve(_beats_at(_half_tempo_dropout_times()), _tempo(120.0))
+
+    assert res.trend == "stable"
+
+
+def test_half_tempo_tracking_dropout_stays_in_global_octave() -> None:
+    res = analyze_tempo_curve(_beats_at(_half_tempo_dropout_times()), _tempo(120.0))
+
+    assert abs(res.bpm_min - 120.0) < 1.0
+    assert all(seg.label == "stable" for seg in res.segments)
