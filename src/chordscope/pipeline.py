@@ -10,6 +10,7 @@ from chordscope.analyzers.chords import recognize_chords
 from chordscope.analyzers.genre import GenreClassifier
 from chordscope.analyzers.key import estimate_key
 from chordscope.analyzers.modulation import detect_modulation
+from chordscope.analyzers.pulse import assess_pulse
 from chordscope.analyzers.style import analyze_styles
 from chordscope.analyzers.tempo import estimate_tempo
 from chordscope.analyzers.tempo_curve import analyze_tempo_curve
@@ -52,6 +53,7 @@ def analyze_file(path: Path, opts: AnalysisOptions) -> TrackAnalysis:
     buffer: AudioBuffer = load_audio(path)
     tempo = estimate_tempo(buffer)
     beats, meter = estimate_beats_and_meter(buffer)
+    pulse = assess_pulse(buffer, beats)
     key = estimate_key(buffer)
     modulation = detect_modulation(buffer, key)
     tempo_curve = analyze_tempo_curve(beats, tempo)
@@ -96,6 +98,7 @@ def analyze_file(path: Path, opts: AnalysisOptions) -> TrackAnalysis:
         harmony=harmony,
         modulation=modulation,
         tempo_curve=tempo_curve,
+        pulse=pulse,
         genre=genre,
         style_notes=styles,
         plot_paths=plot_paths,

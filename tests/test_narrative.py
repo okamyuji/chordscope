@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from chordscope.models import (
+    BandPulse,
     BeatResult,
     ChordResult,
     ChordSegment,
@@ -16,6 +17,7 @@ from chordscope.models import (
     KeySegment,
     MeterResult,
     ModulationResult,
+    PulseResult,
     StyleNotes,
     TempoCurveResult,
     TempoResult,
@@ -248,3 +250,31 @@ def test_narrative_logical_order() -> None:
     }
     sorted_keys = sorted(positions, key=lambda k: positions[k])
     assert sorted_keys == ["## 1. ", "## 2. ", "## 3. ", "## 4. ", "## 5. ", "## 6. ", "## 7. "]
+
+
+def _uncertain_pulse() -> PulseResult:
+    return PulseResult(
+        grid_ratio=0.81,
+        ibi_cv=0.07,
+        bands=[BandPulse(band="mid", clarity=0.05, bpm=33.6, matches_beat=True)],
+        uncertain=True,
+        reasons=["low_grid_ratio", "weak_mid_band_pulse"],
+        method="x",
+    )
+
+
+def test_narrative_marks_beat_based_values_as_reference_when_pulse_uncertain() -> None:
+    track = _track().model_copy(update={"pulse": _uncertain_pulse()})
+
+    md = render_narrative(track)
+
+    assert "拍が不確か" in md
+    assert "拍間隔のそろい 0.81" in md
+    assert "中音帯の拍周期が弱い" in md
+
+
+def test_narrative_has_no_pulse_warning_when_pulse_is_clear() -> None:
+    clear = _uncertain_pulse().model_copy(update={"uncertain": False, "reasons": []})
+    track = _track().model_copy(update={"pulse": clear})
+
+    assert "拍が不確か" not in render_narrative(track)

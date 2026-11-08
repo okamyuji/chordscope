@@ -20,6 +20,7 @@ from chordscope.models import (
     KeySegment,
     MeterResult,
     ModulationResult,
+    PulseResult,
     StyleNotes,
     TempoCurveResult,
     TempoResult,
@@ -185,3 +186,19 @@ def test_write_markdown(tmp_path: Path) -> None:
     write_markdown(_track(), out)
     assert out.exists()
     assert "分析レポート" in out.read_text(encoding="utf-8")
+
+
+def test_render_markdown_shows_pulse_row_with_reasons() -> None:
+    pulse = PulseResult(
+        grid_ratio=0.93,
+        ibi_cv=0.06,
+        bands=[],
+        uncertain=True,
+        reasons=["no_band_matches_beat"],
+        method="x",
+    )
+    track = _track().model_copy(update={"pulse": pulse})
+
+    md = render_markdown(track)
+
+    assert "| Pulse | uncertain | grid=0.930, reasons=no_band_matches_beat |" in md

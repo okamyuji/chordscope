@@ -9,6 +9,7 @@ from chordscope.models import TrackAnalysis
 
 
 def render_markdown(track: TrackAnalysis) -> str:
+    """網羅型の Markdown レポート。概要表のあとに、各分析の詳細を省略せずに並べる。"""
     lines: list[str] = []
     lines.append(f"# 分析レポート: {track.file_path.name}")
     lines.append("")
@@ -29,6 +30,12 @@ def render_markdown(track: TrackAnalysis) -> str:
     lines.append(
         f"| Key | {track.key.tonic} {track.key.mode} | corr={track.key.correlation}, conf={track.key.confidence}, 2nd={track.key.second_best} |"
     )
+    if track.pulse is not None:
+        pulse = track.pulse
+        lines.append(
+            f"| Pulse | {'uncertain' if pulse.uncertain else 'clear'} | "
+            f"grid={pulse.grid_ratio:.3f}, reasons={','.join(pulse.reasons) or '-'} |"
+        )
     if track.tempo_curve is not None:
         tc = track.tempo_curve
         lines.append(

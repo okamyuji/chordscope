@@ -12,6 +12,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 __all__ = [
+    "BandPulse",
     "BeatResult",
     "ChordResult",
     "ChordSegment",
@@ -24,6 +25,8 @@ __all__ = [
     "KeySegment",
     "MeterResult",
     "ModulationResult",
+    "PulseReason",
+    "PulseResult",
     "StyleName",
     "StyleNotes",
     "TempoCurveResult",
@@ -186,6 +189,31 @@ class TempoCurveResult(_Frozen):
     method: str
 
 
+PulseReason = Literal[
+    "too_few_beats", "low_grid_ratio", "weak_mid_band_pulse", "no_band_matches_beat"
+]
+
+
+class BandPulse(_Frozen):
+    """1 帯域のスペクトルフラックスに現れる拍周期。"""
+
+    band: Literal["low", "mid", "high"]
+    clarity: float = Field(..., description="拍周期の範囲での自己相関の最大値 (0 ラグで正規化)")
+    bpm: float | None = Field(None, description="その周期の BPM。周期が取れないとき None")
+    matches_beat: bool = Field(..., description="追跡器の拍と 2 の冪倍で一致するか")
+
+
+class PulseResult(_Frozen):
+    """拍の確かさ。uncertain のとき、拍に依存する値 (テンポ変動・シンコペーション等) は参考扱い。"""
+
+    grid_ratio: float = Field(..., ge=0.0, le=1.0, description="中央値 ±15% に入る拍間隔の割合")
+    ibi_cv: float = Field(..., ge=0.0, description="格子に乗った拍間隔の変動係数")
+    bands: list[BandPulse] = Field(default_factory=list)
+    uncertain: bool
+    reasons: list[PulseReason] = Field(default_factory=list)
+    method: str
+
+
 class TrackAnalysis(_Frozen):
     """1 曲分の最終分析結果。"""
 
@@ -201,6 +229,7 @@ class TrackAnalysis(_Frozen):
     harmony: HarmonicAnalysis
     modulation: ModulationResult | None = None
     tempo_curve: TempoCurveResult | None = None
+    pulse: PulseResult | None = None
     genre: GenreResult | None = None
     style_notes: list[StyleNotes] = Field(default_factory=list)
 
