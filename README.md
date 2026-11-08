@@ -20,7 +20,7 @@
 | **コード認識** | madmom Deep Chroma + DCC を主バックエンド。`librosa-template` 副バックエンドは 10 種 × 12 ルート計 120 テンプレート + Viterbi 平滑 |
 | **音楽理論分析** | music21 でローマ数字解析、機能分類 (T/SD/D)、カデンツ検出 (Authentic / Plagal / Deceptive / ii→V)、転調候補 |
 | **転調検出 (Modulation)** | 16 秒スライディングウィンドウ + 4 秒ホップで Krumhansl-Schmuckler を再適用し、`KeySegment` 列と `KeyChange` (時刻 / from→to / 関係) を出力。フラップ抑制 (multi-pass smoothing + 短セグメントマージ) で旋法音楽でも安定 |
-| **テンポ変動 (Tempo Curve)** | `beat_times[]`の各拍間隔を中央値のオクターブへ寄せてから、8拍窓の中央値間隔で局所BPMを算出し、global BPM 比 ±5% でセグメント分類 (slow / stable / fast)。線形回帰で trend (stable / accelerando / ritardando / variable) を判定 |
+| **テンポ変動 (Tempo Curve)** | `beat_times[]`の各拍間隔を中央値のオクターブへ寄せ、系列全体を1つの倍率で[60, 180) BPMの周期にそろえてから、8拍窓の中央値間隔で局所BPMを算出し（1.5秒の等間隔は80 BPMになる）、global BPM 比 ±5% でセグメント分類 (slow / stable / fast)。線形回帰で trend (stable / accelerando / ritardando / variable) を判定 |
 | **ジャンル分類** | HuggingFace `MIT/ast-finetuned-audioset-10-10-0.4593` (AST + AudioSet 527 クラス)。AudioSet 出力を 163 ジャンルカタログで正規化し、umbrella/mood/機能ラベル除外後に **TOP-5 + family 多様性** (1 family 最大 2 件) で出力 |
 | **ジャンル別観点** | **動的ディスパッチ**: AST top-K ラベルに応じて 80+ キーのヒューリスティックレジストリ (jazz/classic/jpop/rock/blues/hiphop/electronic/country/soul/funk/r&b/metal/punk/reggae/ska/folk/bluegrass/latin/salsa/bossa nova/gospel/ambient/flamenco/world/anime/enka/vocal/soundtrack/musical 等) を起動。未登録ラベルは AST スコアのみ報告 |
 | **ジャンルカタログ** | 163 件 / 14 family (rock / pop / jazz / blues / classical / folk / country / electronic / hiphop / metal / world / latin / religious / soundtrack)。Discogs Styles + AudioSet ontology + 主要音楽辞典から抽出 |
@@ -235,7 +235,7 @@ PD 音源テストは厳密な数値一致ではなく「音楽学的に妥当�
 - **AST + AudioSet モデル**: 約 330 MB を初回利用時に HuggingFace Hub から `~/.cache/huggingface/` にダウンロードする。
 - **精度最優先**: 入力音源は全長を解析する (サンプリング省略なし)。10 秒窓 / 5 秒ホップでジャンル推論を行い、softmax/sigmoid を平均集約する。
 - **マルチアルゴリズム集約**: BPM は 3 手法 → オクターブ正規化 → 中央値 + 一致度信頼度。拍子は各候補で独立 DBN → 信頼度 92% 以内なら最小値優先。
-- テンポ変動のオクターブ扱い ビート追跡は、ところどころで1拍おきにしか拍を取らない。そのままでは、その区間が半分のテンポに見える。そこで各拍間隔を、拍間隔の中央値に最も近いオクターブ（2倍か半分）へ寄せてから局所BPMを出す。代わりに、テンポが実際に倍や半分へ切り替わる区間も元のテンポとして扱い、stableと判定する。対象は、拍間隔と中央値の比が√2倍を超える変化である。
+- テンポ変動のオクターブ扱い ビート追跡は、ところどころで1拍おきにしか拍を取らない。そのままでは、その区間が半分のテンポに見える。そこで各拍間隔を、拍間隔の中央値に最も近いオクターブ（2倍か半分）へ寄せてから局所BPMを出す。代わりに、テンポが実際に倍や半分へ切り替わる区間も、元のテンポとして扱う。対象は、拍間隔と中央値の比が√2倍を超えるか、1/√2倍を下回る変化である。区間のラベルは、そのテンポと全体BPMの比で決まる。全体BPMが同じオクターブにあればstableになり、推定器が別のオクターブを選んだ曲ではslowやfastになる。
 - **ファイル名 Unicode**: 全パイプライン (discovery / load / madmom / 出力) で日本語・全角空白・拉丁系アクセント・括弧を含むファイル名を扱う。Markdown 画像リンクは `urllib.parse.quote` でエンコード。
 
 ---
