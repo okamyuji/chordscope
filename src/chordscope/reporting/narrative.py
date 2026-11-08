@@ -122,6 +122,7 @@ def _format_harmony(track: TrackAnalysis) -> list[str]:
 
 
 def _pulse_reason_text(track: TrackAnalysis) -> list[str]:
+    """拍の不確かさの理由コードを、分析文に載せる日本語に置き換える。"""
     pulse = track.pulse
     if pulse is None:
         return []
@@ -135,6 +136,7 @@ def _pulse_reason_text(track: TrackAnalysis) -> list[str]:
 
 
 def _format_rhythm(track: TrackAnalysis) -> list[str]:
+    """3 章 リズム・グルーヴ。拍が不確かな曲では、拍に依存する値を参考扱いと明記する。"""
     lines = [_section_header(3, "リズム・グルーヴの性格"), ""]
     bpm = track.tempo.bpm
     band = _tempo_band(bpm)

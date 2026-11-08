@@ -48,6 +48,7 @@ def test_steady_click_track_is_not_uncertain(click_buffer: AudioBuffer) -> None:
 
 
 def test_mid_band_pulse_matches_click_tempo(click_buffer: AudioBuffer) -> None:
+    """クリック音は 1000 Hz と 1500 Hz なので、拍の周期は中音帯に現れる。"""
     res = assess_pulse(click_buffer, _beats(_regular_beats(_BPM, _DURATION_SEC)))
 
     mid = next(b for b in res.bands if b.band == "mid")

@@ -9,6 +9,7 @@ from chordscope.models import TrackAnalysis
 
 
 def render_markdown(track: TrackAnalysis) -> str:
+    """網羅型の Markdown レポート。概要表のあとに、各分析の詳細を省略せずに並べる。"""
     lines: list[str] = []
     lines.append(f"# 分析レポート: {track.file_path.name}")
     lines.append("")

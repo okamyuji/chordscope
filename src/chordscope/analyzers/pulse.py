@@ -36,6 +36,10 @@ _MIN_LAG_SEC, _MAX_LAG_SEC = 0.25, 2.0  # 30〜240 BPM
 
 
 def _grid_stats(beat_times: np.ndarray) -> tuple[float, float]:
+    """拍間隔が中央値 ±15% に入る割合と、その間隔だけの変動係数。
+
+    外れた間隔 (取りこぼしや重複) を CV に入れると、テンポの揺れと追跡の失敗が混ざる。
+    """
     intervals = np.diff(beat_times)
     on_grid = np.abs(intervals / np.median(intervals) - 1.0) < GRID_TOLERANCE
     grid = intervals[on_grid]
@@ -61,6 +65,7 @@ def _periodicity(flux: np.ndarray, frame_sec: float) -> tuple[float, float | Non
 
 
 def _matches(period: float | None, beat_period: float) -> bool:
+    """周期が拍と 2 の冪倍 (±8%) で一致するか。追跡器は拍の倍や半分を拾うので、オクターブ違いは一致とみなす。"""
     if period is None:
         return False
     r = float(np.log2(period / beat_period))
@@ -68,6 +73,10 @@ def _matches(period: float | None, beat_period: float) -> bool:
 
 
 def _band_pulses(buffer: AudioBuffer, beat_period: float) -> list[BandPulse]:
+    """低音・中音・高音帯ごとの拍周期の明瞭さ、その BPM、追跡した拍との一致。
+
+    STFT は曲全体を一度に作る。1 時間の曲で最大メモリが約 0.9 GB 増える。
+    """
     mag = np.abs(librosa.stft(buffer.samples, n_fft=_N_FFT, hop_length=_HOP))
     freqs = librosa.fft_frequencies(sr=buffer.sample_rate, n_fft=_N_FFT)
     frame_sec = _HOP / buffer.sample_rate
