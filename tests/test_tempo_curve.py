@@ -131,12 +131,14 @@ def _half_tempo_dropout_times() -> list[float]:
 
 
 def test_half_tempo_tracking_dropout_keeps_trend_stable() -> None:
+    """一定テンポでも、追跡の取りこぼし区間が別テンポに見えて trend を誤らせていた。"""
     res = analyze_tempo_curve(_beats_at(_half_tempo_dropout_times()), _tempo(120.0))
 
     assert res.trend == "stable"
 
 
 def test_half_tempo_tracking_dropout_stays_in_global_octave() -> None:
+    """取りこぼし区間の窓だけ半分の BPM (60) が bpm_min に残り、slow と判定されていた。"""
     res = analyze_tempo_curve(_beats_at(_half_tempo_dropout_times()), _tempo(120.0))
 
     assert abs(res.bpm_min - 120.0) < 1.0
@@ -154,6 +156,7 @@ def test_tracker_rate_kept_when_global_estimate_is_three_to_two() -> None:
 
 
 def test_slow_tracker_rate_is_lifted_into_canonical_range() -> None:
+    """ピアノ独奏曲の形。追跡器が 58.8 BPM で拍を取っても、系列は 1 つの倍率で 117.6 に上がる。"""
     times = (np.arange(64) * 1.02).tolist()  # 58.8 BPM
 
     res = analyze_tempo_curve(_beats_at(times), _tempo(117.45))
@@ -163,7 +166,19 @@ def test_slow_tracker_rate_is_lifted_into_canonical_range() -> None:
 
 
 def test_single_beat_returns_empty_segments() -> None:
+    """拍間隔が空のとき、中央値の計算 (空配列) に進まない。"""
     res = analyze_tempo_curve(_beats_at([1.0]), _tempo(120.0))
 
     assert res.segments == []
     assert res.trend == "stable"
+
+
+def test_equal_half_tempo_split_keeps_the_shorter_interval() -> None:
+    """取りこぼしが拍間隔のちょうど半数のとき、中央値は 2 種の間 (実在しない間隔) に落ちる。"""
+    intervals = np.concatenate([np.full(32, 0.5), np.full(32, 1.0)])
+    times = np.cumsum(np.concatenate([[0.0], intervals])).tolist()
+
+    res = analyze_tempo_curve(_beats_at(times), _tempo(120.0))
+
+    assert abs(res.bpm_min - 120.0) < 1.0
+    assert all(seg.label == "stable" for seg in res.segments)

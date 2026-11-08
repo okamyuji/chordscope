@@ -33,11 +33,14 @@ def _fold_intervals(intervals: np.ndarray) -> np.ndarray:
     その区間と境目の窓 (2 種の間隔が混ざる) が別テンポとして残る。
     基準を global BPM にしないのは、推定器と追跡器のテンポが 3:2 でずれる曲 (声楽など) があるため。
     中央値から ±41% (√2 倍) を超える本物のテンポ変化も畳まれる。
+    中央値は実在する間隔から選ぶ。取りこぼしがちょうど半数だと、平均を取る中央値は
+    2 種の間 (どちらでもない間隔) になる。同数なら短い方を選ぶのは、取りこぼしが間隔を
+    2 倍にするだけで半分にはしないため。
     """
     positive = intervals > 0
     if not positive.any():
         return intervals
-    period = float(np.median(intervals[positive]))
+    period = float(np.quantile(intervals[positive], 0.5, method="lower"))
     folded = intervals.copy()
     folded[positive] = intervals[positive] * 2.0 ** np.round(np.log2(period / intervals[positive]))
     return folded * (60.0 / _canonicalize(60.0 / period)) / period
